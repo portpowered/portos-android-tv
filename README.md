@@ -293,8 +293,9 @@ API key, sender id). `make ENV=pilot` selects one; the default is `pilot`.
 
 ## Deploy
 
-`make deploy ENV=pilot` builds a signed release APK and uploads it to the public downloads bucket, then prints
-the download URL the Android TV plugin's setup docs link to. The signing key is read from Secret Manager
+`make deploy ENV=pilot` builds a signed release APK, uploads it to the public downloads bucket and creates the
+GitHub release `v<versionName>` in portpowered/portos-android-tv with it (run `make publish-repo` first so the
+release tags the matching source), then prints both download URLs. The setup guide links to the GitHub one. The signing key is read from Secret Manager
 (`portos-android-tv-signing-keystore`, `-password`); it never lives in the repository. Releases are manual.
 
 Source and releases are also published to the public repository

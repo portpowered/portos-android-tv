@@ -28,9 +28,21 @@ jobs:
           version="$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)"
           test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match versionName $version"; exit 1; }
           echo "VERSION=$version" >> "$GITHUB_ENV"
-      - run: make lint
-      - run: make test
+      - name: Skip a release make deploy already published
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.existing.outputs.skip != 'true'
+        run: make lint
+      - if: steps.existing.outputs.skip != 'true'
+        run: make test
       - name: Build the signed APK
+        if: steps.existing.outputs.skip != 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.PORTOS_TV_KEYSTORE_BASE64 }}
           PORTOS_TV_KEYSTORE_PASSWORD: ${{ secrets.PORTOS_TV_KEYSTORE_PASSWORD }}
@@ -43,6 +55,7 @@ jobs:
           cp app/build/outputs/apk/pilot/release/app-pilot-release.apk portos-android-tv.apk
           cp portos-android-tv.apk "portos-android-tv-$VERSION.apk"
       - name: Publish the release
+        if: steps.existing.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" portos-android-tv.apk "portos-android-tv-$VERSION.apk" --title "$GITHUB_REF_NAME" --generate-notes

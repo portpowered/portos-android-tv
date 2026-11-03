@@ -5,6 +5,10 @@
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- Same for targetSdk: the check compares it with the newest SDK installed, so a CI runner with a newer SDK
+         than the pinned compileSdk fails a build that passed locally. Raising targetSdk is a reviewed change tested
+         on a TV, made together with compileSdk. -->
+    <issue id="OldTargetApi" severity="ignore" />
     <!-- The app ships in English only during alpha. -->
     <issue id="MissingTranslation" severity="ignore" />
     <!-- SYSTEM_ALERT_WINDOW is required for background launches; see README "Installing on a TV". -->
