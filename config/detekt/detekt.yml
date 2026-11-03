@@ -1,0 +1,32 @@
+# detekt runs with allRules = true (see build.gradle.kts): every rule, including the opt-in ones, is on.
+# This file only records deliberate exceptions. Each one says why; add no exception without a reason.
+config:
+  validation: true
+  warningsAsErrors: true
+
+build:
+  maxIssues: 0
+
+style:
+  MaxLineLength:
+    maxLineLength: 120
+  # ktlint owns import ordering and wildcard policy; two tools disagreeing on one concern is noise.
+  WildcardImport:
+    active: true
+  # Early `?: return` guards keep validation flat; they are what the rule would otherwise push into nesting.
+  ReturnCount:
+    excludeGuardClauses: true
+
+comments:
+  # Public API of the :protocol library must be documented; Android framework overrides need not be.
+  UndocumentedPublicFunction:
+    excludes: ['**/test/**']
+  UndocumentedPublicClass:
+    excludes: ['**/test/**']
+  UndocumentedPublicProperty:
+    excludes: ['**/test/**']
+
+naming:
+  # JUnit test names are sentences in backticks.
+  FunctionNaming:
+    excludes: ['**/test/**']

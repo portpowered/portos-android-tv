@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 leanback banner: the Port OS wordmark on the brand background. Leanback banners must be 320x180,
+     larger than the vector size lint prefers; it is two rectangles, so drawing cost is negligible. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="VectorRaster"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#FF101418" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#FF4F8CFF" android:pathData="M120,60h80v60h-80z M140,80v20h40v-20z" />
+</vector>

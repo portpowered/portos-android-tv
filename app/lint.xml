@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android Lint runs every check with warnings as errors (app/build.gradle.kts). Exceptions need a reason. -->
+<lint>
+    <!-- Version catalogs pin exact, reviewed versions; "a newer version is available" is not a defect. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- The app ships in English only during alpha. -->
+    <issue id="MissingTranslation" severity="ignore" />
+    <!-- SYSTEM_ALERT_WINDOW is required for background launches; see README "Installing on a TV". -->
+    <issue id="SystemPermissionTypo" severity="error" />
+</lint>

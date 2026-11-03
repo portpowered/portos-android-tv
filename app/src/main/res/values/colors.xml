@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#FF101418</color>
+    <color name="text">#FFF2F4F7</color>
+    <color name="overlay_dim">#99000000</color>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Port OS</string>
+    <string name="pairing_title">Connect this TV to Port OS</string>
+    <string name="pairing_instructions">Scan the code or go to %1$s and enter:</string>
+    <string name="pairing_waiting">Waiting for approval…</string>
+    <string name="paired_title">This TV is connected to Port OS</string>
+    <string name="paired_device">Device: %1$s</string>
+    <string name="status_ok">Ready</string>
+    <string name="status_missing_launch">Setup needed: background launch is not allowed. Run make setup-tv.</string>
+    <string name="status_missing_listener">Setup needed: media access is not allowed. Run make setup-tv.</string>
+    <string name="status_missing_accessibility">Setup needed: the accessibility service is not enabled, so remote buttons and screen capture do not work. Run make setup-tv.</string>
+    <string name="accessibility_description">Lets Port OS press remote buttons and capture the screen when you ask it to.</string>
+    <string name="error_generic">Something went wrong: %1$s</string>
+    <string name="retry">Try again</string>
+</resources>

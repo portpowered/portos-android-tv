@@ -1,0 +1,48 @@
+# Builds the signed pilot APK for a version tag (v0.5.3) and publishes it as a GitHub release.
+# Every release carries portos-android-tv.apk, so
+# https://github.com/portpowered/portos-android-tv/releases/latest/download/portos-android-tv.apk is always the newest.
+#
+# Needs two repository secrets, set by the owner: PORTOS_TV_KEYSTORE_BASE64 (the release keystore, base64) and
+# PORTOS_TV_KEYSTORE_PASSWORD. An APK signed with any other key cannot update an installed app.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check the tag matches versionName
+        run: |
+          version="$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)"
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "tag $GITHUB_REF_NAME does not match versionName $version"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - run: make lint
+      - run: make test
+      - name: Build the signed APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PORTOS_TV_KEYSTORE_BASE64 }}
+          PORTOS_TV_KEYSTORE_PASSWORD: ${{ secrets.PORTOS_TV_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo "PORTOS_TV_KEYSTORE_BASE64 is not set"; exit 1; }
+          keystore="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          PORTOS_TV_KEYSTORE="$keystore" ./gradlew --console=plain :app:assemblePilotRelease
+          rm -f "$keystore"
+          cp app/build/outputs/apk/pilot/release/app-pilot-release.apk portos-android-tv.apk
+          cp portos-android-tv.apk "portos-android-tv-$VERSION.apk"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" portos-android-tv.apk "portos-android-tv-$VERSION.apk" --title "$GITHUB_REF_NAME" --generate-notes
