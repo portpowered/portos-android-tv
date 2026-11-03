@@ -32,8 +32,11 @@ done
 # Monorepo-relative links point at files the public copy does not have.
 sed -i '/\](\.\.\/\.\.\//d' "$WORK/repo/README.md"
 
+# Windows checkouts have no executable bit, so take each file's mode from the monorepo index.
+EXECUTABLES="$(git ls-files -s -- . | awk '$1 == "100755" { print $4 }' | sed 's|^devices/android-tv/||')"
 cd "$WORK/repo" || exit 1
 git add -A
+for file in $EXECUTABLES; do git update-index --chmod=+x -- "$file"; done
 if git diff --cached --quiet; then echo "already current"; exit 0; fi
 if [[ -n "${DRY_RUN:-}" ]]; then git diff --cached --stat; exit 0; fi
 git commit -q -m "Sync from portos-monolith $SHA"
