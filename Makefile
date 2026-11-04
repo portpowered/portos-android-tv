@@ -10,7 +10,6 @@
 #   make setup-tv         grant the one-time permissions (background launch, media sessions, accessibility service)
 #   make release          signed release APK (needs the signing key, see deploy)
 #   make deploy           release + upload to the downloads bucket
-#   make publish-repo     copy this directory to github.com/portpowered/portos-android-tv (DRY_RUN=1 to preview)
 #   make clean
 #
 # Variables: ENV (pilot|local, default pilot), ADB_SERIAL (default: the only connected device).
@@ -31,7 +30,7 @@ ADB := adb $(if $(ADB_SERIAL),-s $(ADB_SERIAL),)
 VARIANT := $(if $(filter local,$(ENV)),Local,$(if $(filter pilot,$(ENV)),Pilot,$(error ENV must be pilot or local)))
 
 .DEFAULT_GOAL := build
-.PHONY: build lint format test test-device install setup-tv release deploy publish-repo clean
+.PHONY: build lint format test test-device install setup-tv release deploy clean
 
 build:
 	$(GRADLE) :app:assemble$(VARIANT)Debug
@@ -61,9 +60,6 @@ release:
 
 deploy: release
 	bash scripts/deploy.sh $(ENV)
-
-publish-repo:
-	bash scripts/publish-repo.sh
 
 clean:
 	$(GRADLE) clean

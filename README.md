@@ -21,8 +21,9 @@ and ask what is playing, with no extra hub in the house.
   from the [latest release](https://github.com/portpowered/portos-android-tv/releases/latest). Setup steps:
   [Connect an Android TV](https://portoperatingsystem.com/docs/user-guides/android-tv/).
 
-This directory is self-contained: it reads nothing from the Go code. Its only contract with the backend is
-the public HTTP API and the FCM message format documented below, so it can move to its own repository.
+This repository is the app's only home. Its contract with Port OS is the public HTTP API, the FCM message format
+and the state report format documented below; the cloud-side Android TV plugin lives with the Port OS server and
+must keep accepting the reports of app versions still installed on TVs.
 
 ## Quick start
 
@@ -35,7 +36,6 @@ the public HTTP API and the FCM message format documented below, so it can move 
 | Install on the connected TV/emulator | `make install` |
 | Grant the one-time TV permissions | `make setup-tv` |
 | Publish a release APK | `make deploy` |
-| Publish the public source copy | `make publish-repo` |
 
 Requirements: JDK 17–21 (`JAVA_HOME`; the Makefile prefers a scoop `temurin21-jdk` if present), the Android
 SDK (`ANDROID_HOME`, default `%LOCALAPPDATA%\Android\Sdk`) and `adb`. Gradle comes from the wrapper.
@@ -294,15 +294,11 @@ API key, sender id). `make ENV=pilot` selects one; the default is `pilot`.
 ## Deploy
 
 `make deploy ENV=pilot` builds a signed release APK, uploads it to the public downloads bucket and creates the
-GitHub release `v<versionName>` in portpowered/portos-android-tv with it (run `make publish-repo` first so the
-release tags the matching source), then prints both download URLs. The setup guide links to the GitHub one. The signing key is read from Secret Manager
+GitHub release `v<versionName>` in portpowered/portos-android-tv with it (tagging the
+commit on `main`), then prints both download URLs. The setup guide links to the GitHub one. The signing key is read from Secret Manager
 (`portos-android-tv-signing-keystore`, `-password`); it never lives in the repository. Releases are manual.
 
-Source and releases are also published to the public repository
-[portpowered/portos-android-tv](https://github.com/portpowered/portos-android-tv), a release copy of this
-directory. `make publish-repo` (`DRY_RUN=1` to preview) copies the tracked files there, without `CLAUDE.md` and with
-`github/workflows/` as `.github/workflows/`, and pushes one "Sync from portos-monolith" commit. There, `ci.yml` runs
-lint, tests and a build on every push, and pushing a tag that matches `versionName` (`v0.5.3`) runs `release.yml`.
+In GitHub Actions, `ci.yml` runs lint, tests and a build on every push and pull request, and pushing a tag that matches `versionName` (`v0.5.3`) runs `release.yml`.
 It builds the signed APK and attaches `portos-android-tv.apk` and `portos-android-tv-<version>.apk` to a GitHub
 release, so the `releases/latest/download/portos-android-tv.apk` link always serves the newest one. The release
 workflow needs the repository secrets `PORTOS_TV_KEYSTORE_BASE64` and `PORTOS_TV_KEYSTORE_PASSWORD`, holding the same
