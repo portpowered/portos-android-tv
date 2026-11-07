@@ -72,6 +72,22 @@ class FileBodiesTest {
     }
 
     @Test
+    fun aTitleNamesTheFile() {
+        assertEquals(
+            accepted(Command.PlayFile(url, "video/mp4", video = true, loop = false, title = "Dance")),
+            decode("play-video", video() + ""","title":"Dance"}""")
+        )
+        val audio = "https://files.example.com/song.mp3"
+        assertEquals(
+            accepted(Command.PlayFile(audio, "audio/mpeg", video = false, loop = false, title = "Song")),
+            decode("play-audio", """{"audio":{"url":"$audio","mimeType":"audio/mpeg"},"title":"Song"}""")
+        )
+        listOf("1", "null", "true").forEach { title ->
+            assertEquals(invalid("title must be a string"), decode("play-video", video() + ""","title":$title}"""))
+        }
+    }
+
+    @Test
     fun rejectsAudioTheTvCannotPlay() {
         assertEquals(
             invalid("audio mimeType must start with audio/"),

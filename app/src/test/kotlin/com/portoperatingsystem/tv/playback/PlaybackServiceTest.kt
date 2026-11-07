@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Looper
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import com.portoperatingsystem.tv.protocol.command.Command
 import java.io.File
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -68,7 +69,10 @@ class PlaybackServiceTest {
         server.enqueue(MockResponse().setBody(Buffer().write(ByteArray(FILE_BYTES))))
         server.start()
         val url = server.url("/dance.mp4").toString()
-        val intent = PlaybackService.playFileIntent(application, url, "video/mp4", video = true, loop = loop)
+        val intent = PlaybackService.playFileIntent(
+            application,
+            Command.PlayFile(url, "video/mp4", video = true, loop = loop, title = "Dance")
+        )
         val controller = Robolectric.buildService(PlaybackService::class.java, intent).create().startCommand(0, 1)
         running = controller
         awaitItem(controller.get())
@@ -90,6 +94,7 @@ class PlaybackServiceTest {
         val player = assertNotNull(startFile(loop = true).player)
 
         assertEquals(Player.REPEAT_MODE_ONE, player.repeatMode)
+        assertEquals("Dance", player.currentMediaItem?.mediaMetadata?.title)
         val uri = assertNotNull(player.currentMediaItem?.localConfiguration?.uri)
         assertEquals("file", uri.scheme)
         assertEquals(listOf(File(assertNotNull(uri.path))), mediaDirectory.listFiles()?.toList())
@@ -117,7 +122,10 @@ class PlaybackServiceTest {
         server.enqueue(MockResponse().setResponseCode(HTTP_GONE))
         server.start()
         val url = server.url("/gone.mp4").toString()
-        val intent = PlaybackService.playFileIntent(application, url, "video/mp4", video = true, loop = false)
+        val intent = PlaybackService.playFileIntent(
+            application,
+            Command.PlayFile(url, "video/mp4", video = true, loop = false)
+        )
         val controller = Robolectric.buildService(PlaybackService::class.java, intent).create().startCommand(0, 1)
         running = controller
 

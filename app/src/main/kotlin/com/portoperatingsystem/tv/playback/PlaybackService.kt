@@ -13,6 +13,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.portoperatingsystem.tv.protocol.command.Command
 import com.portoperatingsystem.tv.ui.PlayerActivity
 import java.io.File
 
@@ -91,7 +92,12 @@ internal class PlaybackService : MediaSessionService() {
             id != latest || session == null -> file?.delete()
             file == null -> stopSelf()
             else -> {
-                val item = MediaItem.Builder().setUri(Uri.fromFile(file)).setMimeType(request.mimeType).build()
+                val metadata = MediaMetadata.Builder().setTitle(request.title).build()
+                val item = MediaItem.Builder()
+                    .setUri(Uri.fromFile(file))
+                    .setMimeType(request.mimeType)
+                    .setMediaMetadata(metadata)
+                    .build()
                 start(item, 0L, request.video, request.loop, file)
             }
         }
@@ -140,6 +146,7 @@ internal class PlaybackService : MediaSessionService() {
         val mimeType: String = checkNotNull(intent.getStringExtra(EXTRA_MIME_TYPE)) { "play request has no mimeType" }
         val video: Boolean = intent.getBooleanExtra(EXTRA_VIDEO, false)
         val loop: Boolean = intent.getBooleanExtra(EXTRA_LOOP, false)
+        val title: String? = intent.getStringExtra(EXTRA_TITLE)
     }
 
     companion object {
@@ -170,13 +177,14 @@ internal class PlaybackService : MediaSessionService() {
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_OFFSET_MILLIS, offsetMillis)
 
-        /** The intent that downloads [url] and plays the file, [video] or audio, repeating it when [loop]. */
-        fun playFileIntent(context: Context, url: String, mimeType: String, video: Boolean, loop: Boolean): Intent =
+        /** The intent that downloads [file] and plays it, video or audio, repeating it when it loops. */
+        fun playFileIntent(context: Context, file: Command.PlayFile): Intent =
             Intent(context, PlaybackService::class.java)
                 .setAction(ACTION_PLAY_FILE)
-                .putExtra(EXTRA_URI, url)
-                .putExtra(EXTRA_MIME_TYPE, mimeType)
-                .putExtra(EXTRA_VIDEO, video)
-                .putExtra(EXTRA_LOOP, loop)
+                .putExtra(EXTRA_URI, file.url)
+                .putExtra(EXTRA_MIME_TYPE, file.mimeType)
+                .putExtra(EXTRA_VIDEO, file.video)
+                .putExtra(EXTRA_LOOP, file.loop)
+                .putExtra(EXTRA_TITLE, file.title)
     }
 }
