@@ -53,8 +53,8 @@ private class FakeDevice(
         audio += Triple(uri, title, offsetMillis)
     }
 
-    override fun playFile(url: String, mimeType: String, video: Boolean, loop: Boolean) {
-        files += Command.PlayFile(url, mimeType, video, loop)
+    override fun playFile(file: Command.PlayFile) {
+        files += file
     }
 
     override fun mediaKey(action: TransportAction) {
@@ -228,7 +228,13 @@ class CommandExecutorTest {
     @Test
     fun playsDownloadedFiles() {
         val device = FakeDevice()
-        val video = Command.PlayFile("https://example.com/dance.mp4", "video/mp4", video = true, loop = true)
+        val video = Command.PlayFile(
+            "https://example.com/dance.mp4",
+            "video/mp4",
+            video = true,
+            loop = true,
+            title = "Dance"
+        )
         val audio = Command.PlayFile("https://example.com/song.mp3", "audio/mpeg", video = false, loop = false)
         assertEquals(Execution.Done, executorFor(device).execute(video))
         assertEquals(Execution.Done, executorFor(device).execute(audio))

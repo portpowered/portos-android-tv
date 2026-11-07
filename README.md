@@ -207,12 +207,14 @@ The files commands carry a URL, never the bytes:
 
 | `type` (under `port1/systems/zero/capability-interfaces/`) | `body` |
 | --- | --- |
-| `media-player/play-video` | `{"video":{"url":"https://...","mimeType":"video/mp4","expiresAt":"<RFC 3339>"},"loop":true}` |
+| `media-player/play-video` | `{"video":{"url":"https://...","mimeType":"video/mp4","expiresAt":"<RFC 3339>"},"loop":true,"title":"Dance"}` |
 | `media-player/play-audio` | `{"audio":{"url":"https://...","mimeType":"audio/mpeg","expiresAt":"<RFC 3339>"}}` |
 
 `url` must be public HTTPS (a host, no credentials). A video's `mimeType` must be `video/mp4`; an audio file's must
 start with `audio/`. `loop` is optional and defaults to `false` (video only; audio never loops). `expiresAt` is for the
-sender's bookkeeping; the app downloads immediately and does not read it. Anything else is rejected as an invalid
+sender's bookkeeping; the app downloads immediately and does not read it. `title` is optional on both and becomes the
+media session title, so the state report's `nowPlaying.name` says which file plays. Playback reads `LOADING` while
+the file downloads, then `PLAYING`; a `pause` in that window starts the file paused at 0. Anything else is rejected as an invalid
 message. `SUCCEEDED` on the cloud side means the push was delivered, not that the TV is playing.
 
 ### State report format

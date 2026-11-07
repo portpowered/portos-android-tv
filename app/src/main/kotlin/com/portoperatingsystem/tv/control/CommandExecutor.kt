@@ -23,8 +23,8 @@ internal interface DevicePort {
     /** Plays the audio file at [uri], starting [offsetMillis] in. */
     fun playUri(uri: String, title: String?, offsetMillis: Long)
 
-    /** Downloads the file at [url] and plays it full screen: [video] or audio, repeating when [loop]. */
-    fun playFile(url: String, mimeType: String, video: Boolean, loop: Boolean)
+    /** Downloads [file] and plays it full screen: video or audio, repeating when it loops, named by its title. */
+    fun playFile(file: Command.PlayFile)
 
     /** Sends a media key to the active media session. */
     fun mediaKey(action: TransportAction)
@@ -146,9 +146,7 @@ internal class CommandExecutor(
             device.showNotification(command.title, command.body, command.displayMillis)
         }
         is Command.PlayUri -> fromBackground { device.playUri(command.uri, command.title, command.offsetMillis) }
-        is Command.PlayFile -> fromBackground {
-            device.playFile(command.url, command.mimeType, command.video, command.loop)
-        }
+        is Command.PlayFile -> fromBackground { device.playFile(command) }
         is Command.Transport -> done { device.mediaKey(command.action) }
         is Command.Seek -> sessions.seekTo(command.positionMillis)
         is Command.Skip -> sessions.skip(command.deltaMillis)

@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.view.KeyEvent
 import com.portoperatingsystem.tv.playback.PlaybackService
+import com.portoperatingsystem.tv.protocol.command.Command
 import com.portoperatingsystem.tv.protocol.command.TransportAction
 import com.portoperatingsystem.tv.protocol.media.LaunchTarget
 import com.portoperatingsystem.tv.ui.NotificationActivity
@@ -41,8 +42,8 @@ internal class AndroidDevice(private val context: Context) : DevicePort {
         context.startService(PlaybackService.playIntent(context, uri, title, offsetMillis))
     }
 
-    override fun playFile(url: String, mimeType: String, video: Boolean, loop: Boolean) {
-        context.startService(PlaybackService.playFileIntent(context, url, mimeType, video, loop))
+    override fun playFile(file: Command.PlayFile) {
+        context.startService(PlaybackService.playFileIntent(context, file))
     }
 
     // On the TV a media key this app dispatches never reaches its own Media3 session, so the app's player takes the
