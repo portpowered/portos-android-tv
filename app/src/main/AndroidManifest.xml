@@ -63,7 +63,18 @@
             android:taskAffinity=""
             android:theme="@style/Theme.PortOs.Notification" />
 
-        <!-- play-uri audio. Media3 keeps it in the foreground, with a notification, while audio plays. -->
+        <!-- The player screen for play-uri, play-video and play-audio. Started only by PlaybackService, in its own
+             task so closing it returns to the app that was showing; it closes itself when playback ends. -->
+        <activity
+            android:name=".ui.PlayerActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PortOs.Player" />
+
+        <!-- play-uri audio and play-video and play-audio files. Media3 keeps it in the foreground, with a
+             notification, while they play. -->
         <service
             android:name=".playback.PlaybackService"
             android:exported="false"

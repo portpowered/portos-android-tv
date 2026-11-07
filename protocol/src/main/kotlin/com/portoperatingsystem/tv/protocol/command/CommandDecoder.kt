@@ -65,6 +65,8 @@ public object CommandDecoder {
         return when (type) {
             MEDIA_PLAYER + "play-media" -> playMedia(body)
             MEDIA_PLAYER + "play-uri" -> decodeAudioUri(body)
+            MEDIA_PLAYER + "play-video" -> decodePlayVideo(body)
+            MEDIA_PLAYER + "play-audio" -> decodePlayAudio(body)
             MEDIA_PLAYER + "seek" -> decodeSeek(body)
             MEDIA_PLAYER + "skip-forward" -> decodeSkip(body, 1L)
             MEDIA_PLAYER + "skip-backward" -> decodeSkip(body, -1L)

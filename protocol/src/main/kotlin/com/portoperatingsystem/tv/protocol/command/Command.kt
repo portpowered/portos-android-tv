@@ -10,6 +10,12 @@ public sealed interface Command {
     /** `media-player/play-uri`: play the finite public HTTPS audio file at [uri], starting [offsetMillis] in. */
     public data class PlayUri(val uri: String, val title: String?, val offsetMillis: Long) : Command
 
+    /**
+     * `media-player/play-video` and `play-audio`: download the file at [url] (public HTTPS, short-lived) once, then
+     * play the local copy full screen; [video] tells the two apart, and [loop] repeats it until stopped.
+     */
+    public data class PlayFile(val url: String, val mimeType: String, val video: Boolean, val loop: Boolean) : Command
+
     /** `notification/notification-trigger` (IMMEDIATE): show [title] and [body] on screen for [displayMillis]. */
     public data class ShowNotification(val title: String, val body: String, val displayMillis: Long) : Command
 
