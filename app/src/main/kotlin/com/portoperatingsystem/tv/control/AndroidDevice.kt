@@ -45,7 +45,14 @@ internal class AndroidDevice(private val context: Context) : DevicePort {
         context.startService(PlaybackService.playFileIntent(context, url, mimeType, video, loop))
     }
 
+    // On the TV a media key this app dispatches never reaches its own Media3 session, so the app's player takes the
+    // action through its controller; other apps get the key, which is what their sessions answer.
     override fun mediaKey(action: TransportAction) {
+        val own = ownRelevantController(context)
+        if (own != null) {
+            transport(own, action)
+            return
+        }
         val code = when (action) {
             TransportAction.PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
             TransportAction.PAUSE -> KeyEvent.KEYCODE_MEDIA_PAUSE

@@ -51,6 +51,10 @@ keep accepting older app versions, because installed TVs update late.
   silently ignores `seekTo` unless the session advertises `ACTION_SEEK_TO` (256) in `PlaybackState.actions`; the
   command checks the bit and fails with `SEEK_NOT_SUPPORTED` instead of reporting success. Commands and reports pick
   their session with the one `mostRelevant` (`state/Sessions.kt`), so they never disagree about which app is playing.
+- A media key the app dispatches through `AudioManager` never reaches its own Media3 session (seen on the TCL TV in
+  0.6.0: pause and play were logged done and nothing changed). When that pick is the app's own session,
+  `AndroidDevice.mediaKey` uses its `TransportControls` instead (`ownRelevantController`). Robolectric's
+  `ShadowMediaController` does not forward transport calls, so tests check the session choice, not the call.
   A skip's distance is required (the schema makes it optional); there is no default.
 - `PlayerActivity` shows the player `PlaybackService` keeps in its companion `currentPlayer` (in-process, main thread
   only), and finishes when that player goes idle or ends; the service starts it with each new play request. Stopping

@@ -110,7 +110,8 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
    its FCM registration token, device id, name and public key. The TV becomes an endpoint in your account.
 2. **Commands (cloud → TV).** The plugin sends an FCM data message per Port OS command. The app's
    `FirebaseMessagingService` decodes it and runs it: play a `portos-media://` URI through the right app's
-   deep link, play/pause/next/previous through media keys, volume and mute through `AudioManager`. Two commands
+   deep link, play/pause/stop/next/previous through media keys (through the app's own session controller when
+   `PlaybackService` is the session in use), volume and mute through `AudioManager`. Two commands
    run inside the app itself:
    - **Text notification** (`notification/notification-trigger`, `triggerType` `IMMEDIATE` only). `NotificationActivity`
      is started through the same background-launch path as a deep link (`SYSTEM_ALERT_WINDOW`). It is a translucent
@@ -120,7 +121,8 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
    - **Play audio by URI** (`media-player/play-uri`, public HTTPS, `FILE` only, optional `title` and
      `offsetInMilliseconds`). `PlaybackService` is a Media3 `MediaSessionService` around an ExoPlayer; Media3 keeps it
      in the foreground (`mediaPlayback`) with a playback notification while audio plays. Because it owns a media
-     session, media keys, `MediaSessionListener` state reports and volume treat it like any other player. It stops
+     session, `MediaSessionListener` state reports and volume treat it like any other player; transport commands
+     reach it through its `MediaController`, because a media key the app dispatches itself never reaches its own session. It stops
      itself when the clip ends, fails, or is stopped. Live streams and transcoding are not supported.
    - **Play a video or audio file** (`media-player/play-video`, `media-player/play-audio`). The plugin publishes the
      caller's bytes at a short-lived public HTTPS URL and sends only that URL (an FCM message is limited to 4 KB), so
@@ -321,7 +323,7 @@ GitHub release `v<versionName>` in portpowered/portos-android-tv with it (taggin
 commit on `main`), then prints both download URLs. The setup guide links to the GitHub one. The signing key is read from Secret Manager
 (`portos-android-tv-signing-keystore`, `-password`); it never lives in the repository. Releases are manual.
 
-In GitHub Actions, `ci.yml` runs lint, tests and a build on every push and pull request, and pushing a tag that matches `versionName` (`v0.6.0`) runs `release.yml`.
+In GitHub Actions, `ci.yml` runs lint, tests and a build on every push and pull request, and pushing a tag that matches `versionName` (`v0.6.1`) runs `release.yml`.
 It builds the signed APK and attaches `portos-android-tv.apk` and `portos-android-tv-<version>.apk` to a GitHub
 release, so the `releases/latest/download/portos-android-tv.apk` link always serves the newest one. The release
 workflow needs the repository secrets `PORTOS_TV_KEYSTORE_BASE64` and `PORTOS_TV_KEYSTORE_PASSWORD`, holding the same

@@ -2,6 +2,10 @@ package com.portoperatingsystem.tv.control
 
 import android.app.Application
 import android.content.Intent
+import android.media.session.MediaController
+import android.media.session.MediaSession
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -94,4 +99,27 @@ class AndroidDeviceTest {
         is ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
         else -> emptyList()
     }
+
+    @Test
+    fun transportGoesToThisAppsOwnSessionOnlyWhileItIsTheOneInUse() {
+        val own = controller(application.packageName, PlaybackState.STATE_PLAYING)
+        val youtube = controller("com.google.android.youtube.tv", PlaybackState.STATE_PAUSED)
+        assertEquals(own, ownRelevantController(application))
+
+        shadowOf(own).setPlaybackState(state(PlaybackState.STATE_PAUSED))
+        shadowOf(youtube).setPlaybackState(state(PlaybackState.STATE_PLAYING))
+        assertNull(ownRelevantController(application))
+    }
+
+    // An active session of [packageName] in [playback] state, listed by the session manager.
+    private fun controller(packageName: String, playback: Int): MediaController {
+        val session = MediaSession(application, packageName)
+        val controller = MediaController(application, session.sessionToken)
+        shadowOf(controller).setPackageName(packageName)
+        shadowOf(controller).setPlaybackState(state(playback))
+        shadowOf(application.getSystemService(MediaSessionManager::class.java)).addController(controller)
+        return controller
+    }
+
+    private fun state(playback: Int): PlaybackState = PlaybackState.Builder().setState(playback, 0, 1f).build()
 }
