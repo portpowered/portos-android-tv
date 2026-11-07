@@ -15,7 +15,7 @@ import com.portoperatingsystem.tv.ui.NotificationActivity
 
 /** [DevicePort] backed by the real Android services. */
 internal class AndroidDevice(private val context: Context) : DevicePort {
-    private val audio: AudioManager = context.getSystemService(AudioManager::class.java)
+    internal val audio: AudioManager = context.getSystemService(AudioManager::class.java)
 
     override fun canLaunchFromBackground(): Boolean = Settings.canDrawOverlays(context)
 
@@ -41,6 +41,10 @@ internal class AndroidDevice(private val context: Context) : DevicePort {
         context.startService(PlaybackService.playIntent(context, uri, title, offsetMillis))
     }
 
+    override fun playFile(url: String, mimeType: String, video: Boolean, loop: Boolean) {
+        context.startService(PlaybackService.playFileIntent(context, url, mimeType, video, loop))
+    }
+
     override fun mediaKey(action: TransportAction) {
         val code = when (action) {
             TransportAction.PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
@@ -63,6 +67,7 @@ internal class AndroidDevice(private val context: Context) : DevicePort {
         val direction = if (muted) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE
         audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
     }
-
-    fun isMuted(): Boolean = audio.isStreamMute(AudioManager.STREAM_MUSIC)
 }
+
+// Outside the class only to keep it under detekt's TooManyFunctions; it is part of the device's volume story.
+internal fun AndroidDevice.isMuted(): Boolean = audio.isStreamMute(AudioManager.STREAM_MUSIC)

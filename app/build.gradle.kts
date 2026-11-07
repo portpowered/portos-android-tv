@@ -22,8 +22,8 @@ android {
         applicationId = "com.portoperatingsystem.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 12
-        versionName = "0.5.3"
+        versionCode = 13
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -115,6 +115,7 @@ dependencies {
     implementation(libs.androidx.work)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    implementation(libs.media3.ui)
     implementation(libs.zxing.core)
     implementation(libs.dadb)
 

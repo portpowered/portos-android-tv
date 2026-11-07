@@ -52,6 +52,12 @@ keep accepting older app versions, because installed TVs update late.
   command checks the bit and fails with `SEEK_NOT_SUPPORTED` instead of reporting success. Commands and reports pick
   their session with the one `mostRelevant` (`state/Sessions.kt`), so they never disagree about which app is playing.
   A skip's distance is required (the schema makes it optional); there is no default.
+- `PlayerActivity` shows the player `PlaybackService` keeps in its companion `currentPlayer` (in-process, main thread
+  only), and finishes when that player goes idle or ends; the service starts it with each new play request. Stopping
+  therefore means `player.stop()`, which both closes the screen and (via `StopWhenDone`) ends the service. Files for
+  `play-video`/`play-audio` are downloaded to `cacheDir/media` and played locally because the plugin's URL expires in
+  at most ten minutes; delete a file only when its item is replaced or the service is destroyed. A change to the
+  `play-video`/`play-audio` bodies needs the plugin's `media.go` and the README body table changed together.
 - Listing and launching apps is package visibility on Android 11+: only packages the manifest's `<queries>` names or
   that match a declared `<queries><intent>` are visible, so `AndroidApps` works only because the manifest declares the
   LEANBACK_LAUNCHER and LAUNCHER intents. Change one without the other and `launchable()` quietly returns less. A launch

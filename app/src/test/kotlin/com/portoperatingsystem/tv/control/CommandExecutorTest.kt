@@ -25,6 +25,7 @@ private class FakeDevice(
     val keys = mutableListOf<TransportAction>()
     val notifications = mutableListOf<Triple<String, String, Long>>()
     val audio = mutableListOf<Triple<String, String?, Long>>()
+    val files = mutableListOf<Command.PlayFile>()
     var muted: Boolean? = null
     val pressed = mutableListOf<NavigationKey>()
     val captures = mutableListOf<String>()
@@ -50,6 +51,10 @@ private class FakeDevice(
 
     override fun playUri(uri: String, title: String?, offsetMillis: Long) {
         audio += Triple(uri, title, offsetMillis)
+    }
+
+    override fun playFile(url: String, mimeType: String, video: Boolean, loop: Boolean) {
+        files += Command.PlayFile(url, mimeType, video, loop)
     }
 
     override fun mediaKey(action: TransportAction) {
@@ -218,6 +223,27 @@ class CommandExecutorTest {
         assertEquals(denied, executor.execute(Command.ShowNotification("t", "b", 1)))
         assertEquals(denied, executor.execute(Command.PlayUri("https://example.com/a.mp3", null, 0)))
         assertTrue(device.notifications.isEmpty() && device.audio.isEmpty())
+    }
+
+    @Test
+    fun playsDownloadedFiles() {
+        val device = FakeDevice()
+        val video = Command.PlayFile("https://example.com/dance.mp4", "video/mp4", video = true, loop = true)
+        val audio = Command.PlayFile("https://example.com/song.mp3", "audio/mpeg", video = false, loop = false)
+        assertEquals(Execution.Done, executorFor(device).execute(video))
+        assertEquals(Execution.Done, executorFor(device).execute(audio))
+        assertEquals(listOf(video, audio), device.files)
+    }
+
+    @Test
+    fun refusesFilesWithoutBackgroundPermission() {
+        val device = FakeDevice(backgroundLaunch = false)
+        val file = Command.PlayFile("https://example.com/dance.mp4", "video/mp4", video = true, loop = false)
+        assertEquals(
+            Execution.Failed(ExecutionFailure.BACKGROUND_LAUNCH_NOT_ALLOWED),
+            executorFor(device).execute(file)
+        )
+        assertTrue(device.files.isEmpty())
     }
 
     @Test

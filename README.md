@@ -122,6 +122,16 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
      in the foreground (`mediaPlayback`) with a playback notification while audio plays. Because it owns a media
      session, media keys, `MediaSessionListener` state reports and volume treat it like any other player. It stops
      itself when the clip ends, fails, or is stopped. Live streams and transcoding are not supported.
+   - **Play a video or audio file** (`media-player/play-video`, `media-player/play-audio`). The plugin publishes the
+     caller's bytes at a short-lived public HTTPS URL and sends only that URL (an FCM message is limited to 4 KB), so
+     `PlaybackService` downloads the file once with OkHttp, off the main thread, into `cacheDir/media/<uuid>.<ext>`
+     and plays the local copy: a loop never fetches again, and the link may expire (at most ten minutes) once the
+     download is done. `loop: true` sets `REPEAT_MODE_ONE`. A new request replaces the current item and deletes the
+     previous file; stopping the service deletes them all. A failed download is logged and the service stops. Starting
+     file playback, and `play-uri`, opens `PlayerActivity`: a full-screen Media3 `PlayerView` on the service's player
+     with the standard controls (play and pause, seek bar, position and duration; audio shows them on a plain
+     background). It closes itself when the player goes idle or ends, so the stop key returns to the previous app, and
+     Back stops playback and closes it. The same background-launch check as `play-uri` applies.
    - **Seek and skip** (`media-player/seek`, `skip-forward`, `skip-backward`, `start-over`). They go to the session
      `StateReporter` would report (the one playing, else loading, else paused: `mostRelevant`) through its
      `MediaController.TransportControls.seekTo`, not through media keys. `seek` jumps to `positionMilliseconds`; a skip
@@ -191,6 +201,18 @@ All values are strings, as FCM data messages require.
 
 Unknown versions and types are ignored and logged; the app never guesses.
 
+The files commands carry a URL, never the bytes:
+
+| `type` (under `port1/systems/zero/capability-interfaces/`) | `body` |
+| --- | --- |
+| `media-player/play-video` | `{"video":{"url":"https://...","mimeType":"video/mp4","expiresAt":"<RFC 3339>"},"loop":true}` |
+| `media-player/play-audio` | `{"audio":{"url":"https://...","mimeType":"audio/mpeg","expiresAt":"<RFC 3339>"}}` |
+
+`url` must be public HTTPS (a host, no credentials). A video's `mimeType` must be `video/mp4`; an audio file's must
+start with `audio/`. `loop` is optional and defaults to `false` (video only; audio never loops). `expiresAt` is for the
+sender's bookkeeping; the app downloads immediately and does not read it. Anything else is rejected as an invalid
+message. `SUCCEEDED` on the cloud side means the push was delivered, not that the TV is playing.
+
 ### State report format
 
 `POST /webhooks/android-tv/installations/{authLinkId}`, `Content-Type: application/jose`, body a compact JWS
@@ -254,9 +276,10 @@ devices/android-tv/
         ├── messaging/       FirebaseMessagingService, token rotation
         ├── control/         command execution: launcher, media keys, volume, notification and audio dispatch,
         │                    the accessibility service (remote keys, screenshots) and its upload
-        ├── playback/        play-uri: Media3 ExoPlayer + MediaSession foreground service
+        ├── playback/        play-uri, play-video, play-audio: Media3 ExoPlayer + MediaSession foreground service,
+        │                    file downloads
         ├── state/           media-session listener, state snapshot and signed reports, workers
-        └── ui/              pairing and status screens, text notification overlay (leanback)
+        └── ui/              pairing and status screens, text notification overlay, the full-screen player (leanback)
 ```
 
 Rule of thumb: anything that can be decided without Android lives in `:protocol` and is unit tested on the
@@ -298,7 +321,7 @@ GitHub release `v<versionName>` in portpowered/portos-android-tv with it (taggin
 commit on `main`), then prints both download URLs. The setup guide links to the GitHub one. The signing key is read from Secret Manager
 (`portos-android-tv-signing-keystore`, `-password`); it never lives in the repository. Releases are manual.
 
-In GitHub Actions, `ci.yml` runs lint, tests and a build on every push and pull request, and pushing a tag that matches `versionName` (`v0.5.3`) runs `release.yml`.
+In GitHub Actions, `ci.yml` runs lint, tests and a build on every push and pull request, and pushing a tag that matches `versionName` (`v0.6.0`) runs `release.yml`.
 It builds the signed APK and attaches `portos-android-tv.apk` and `portos-android-tv-<version>.apk` to a GitHub
 release, so the `releases/latest/download/portos-android-tv.apk` link always serves the newest one. The release
 workflow needs the repository secrets `PORTOS_TV_KEYSTORE_BASE64` and `PORTOS_TV_KEYSTORE_PASSWORD`, holding the same
@@ -306,7 +329,7 @@ key as Secret Manager: an APK signed with another key cannot update an installed
 
 ## Gotchas
 
-- `play-uri` and text notifications need the same `make setup-tv` permission as a launch; without it the app
+- `play-uri`, `play-video`, `play-audio` and text notifications need the same `make setup-tv` permission as a launch; without it the app
   logs `BACKGROUND_LAUNCH_NOT_ALLOWED`. Media3 session ids are unique per process, so tests that start
   `PlaybackService` destroy it afterwards.
 - The accessibility service cannot be enabled from the app and Google TV has no settings screen for it, so

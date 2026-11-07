@@ -13,6 +13,7 @@ import com.portoperatingsystem.tv.cloud.PortOsException
 import com.portoperatingsystem.tv.control.AccessibilitySetting
 import com.portoperatingsystem.tv.control.AndroidDevice
 import com.portoperatingsystem.tv.control.InputCapabilities
+import com.portoperatingsystem.tv.control.isMuted
 import com.portoperatingsystem.tv.protocol.media.MediaIdentity
 import kotlin.math.roundToInt
 

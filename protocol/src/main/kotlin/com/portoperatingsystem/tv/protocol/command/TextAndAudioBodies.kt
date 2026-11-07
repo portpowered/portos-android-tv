@@ -13,7 +13,7 @@ private const val URGENT_DISPLAY_MILLIS = 30_000L
 private val urgentPriorities = setOf("HIGH", "URGENT")
 private val priorities = setOf("LOW", "NORMAL") + urgentPriorities
 
-private fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+internal fun JsonObject.string(key: String): String? = (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
 
 /**
  * `notification/notification-trigger`: only `triggerType` IMMEDIATE is shown. HIGH and URGENT notifications stay on
@@ -44,7 +44,7 @@ internal fun decodeAudioUri(body: JsonObject): Outcome {
     }
 }
 
-private fun isPublicHttps(uri: String): Boolean = try {
+internal fun isPublicHttps(uri: String): Boolean = try {
     val parsed = URI(uri)
     parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrEmpty() && parsed.userInfo == null
 } catch (_: URISyntaxException) {
