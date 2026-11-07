@@ -7,9 +7,11 @@ import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.SystemClock
+import com.portoperatingsystem.tv.protocol.command.TransportAction
 import com.portoperatingsystem.tv.state.MediaSessionListener
 import com.portoperatingsystem.tv.state.Playback
 import com.portoperatingsystem.tv.state.currentPosition
+import com.portoperatingsystem.tv.state.mostRelevant
 import com.portoperatingsystem.tv.state.playbackOf
 
 /** [PlayerSession] over an Android [MediaController]; seeking goes through its `TransportControls`. */
@@ -41,10 +43,32 @@ internal class ControllerSession(private val controller: MediaController) : Play
  * The active media sessions, most recent first, or null when notification-listener access is not granted (Android
  * hides other apps' sessions without it).
  */
-internal fun activePlayerSessions(context: Context): List<PlayerSession>? = try {
+internal fun activePlayerSessions(context: Context): List<PlayerSession>? =
+    activeControllers(context)?.map(::ControllerSession)
+
+/**
+ * This app's own session when it is the one a person means ([mostRelevant], the same pick seeking and the state
+ * reports use), else null: another app's session is in use, or media access is not granted.
+ */
+internal fun ownRelevantController(context: Context): MediaController? = activeControllers(context)
+    ?.let { controllers -> mostRelevant(controllers) { playbackOf(it.playbackState) } }
+    ?.takeIf { it.packageName == context.packageName }
+
+/** Runs [action] on [controller] through its `TransportControls`. */
+internal fun transport(controller: MediaController, action: TransportAction) {
+    val controls = controller.transportControls
+    when (action) {
+        TransportAction.PLAY -> controls.play()
+        TransportAction.PAUSE -> controls.pause()
+        TransportAction.STOP -> controls.stop()
+        TransportAction.NEXT -> controls.skipToNext()
+        TransportAction.PREVIOUS -> controls.skipToPrevious()
+    }
+}
+
+private fun activeControllers(context: Context): List<MediaController>? = try {
     context.getSystemService(MediaSessionManager::class.java)
         .getActiveSessions(ComponentName(context, MediaSessionListener::class.java))
-        .map(::ControllerSession)
 } catch (_: SecurityException) {
     null
 }
