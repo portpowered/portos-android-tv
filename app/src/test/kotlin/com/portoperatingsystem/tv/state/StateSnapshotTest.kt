@@ -109,6 +109,33 @@ class StateSnapshotTest {
     }
 
     @Test
+    fun aQueuedItemReportsItsPlaceInTheQueue() {
+        val slideshow = NowPlaying("com.portoperatingsystem.tv", "Beach week", null, 0, queue = QueuePlace(4, 20))
+        val snapshot = StateSnapshot(
+            sampledAtMs = 1_000,
+            playback = Playback.PLAYING,
+            nowPlaying = slideshow,
+            volumePercent = 1,
+            muted = false,
+            backgroundLaunchAllowed = true,
+            mediaAccessAllowed = true,
+            accessibilityEnabled = true,
+            input = InputCapabilities(touch = true, directionalKeys = true)
+        )
+        val nowPlaying = snapshot.claims(nowSeconds = 1, jti = "j")["reports"]!!.jsonObject["nowPlaying"]!!.jsonObject
+        assertEquals(4, nowPlaying["queuePosition"]?.jsonPrimitive?.content?.toInt())
+        assertEquals(20, nowPlaying["queueLength"]?.jsonPrimitive?.content?.toInt())
+    }
+
+    @Test
+    fun theQueuePlaceIsTheActiveItemsIndexOrUnknown() {
+        assertEquals(QueuePlace(2, 3), queuePlace(listOf(10L, 11L, 12L), 11L))
+        assertEquals(null, queuePlace(listOf(10L, 11L), -1L))
+        assertEquals(null, queuePlace(null, 11L))
+        assertEquals(null, queuePlace(listOf(10L), null))
+    }
+
+    @Test
     fun theSampleTimeKeepsMillisecondsSoReportsInOneSecondStayDistinct() {
         fun snapshot(sampledAtMs: Long, position: Long) = StateSnapshot(
             sampledAtMs = sampledAtMs,

@@ -72,7 +72,8 @@ public object CommandDecoder {
             MEDIA_PLAYER + "skip-backward" -> decodeSkip(body, -1L)
             LAUNCHER + "launch-application" -> decodeLaunchApplication(body)
             NOTIFICATION + "notification-trigger" -> decodeNotification(body)
-            else -> decodeDeviceControl(type, body)
+            else -> type?.removePrefix(MEDIA_PLAYER)?.takeIf { it != type }?.let { decodeSlideshow(it, body) }
+                ?: decodeDeviceControl(type, body)
         }
     }
 

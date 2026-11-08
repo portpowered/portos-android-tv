@@ -2,7 +2,6 @@ package com.portoperatingsystem.tv.playback
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -14,43 +13,50 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.portoperatingsystem.tv.protocol.command.Command
+import com.portoperatingsystem.tv.protocol.command.OwnPlayerCommand
+import com.portoperatingsystem.tv.protocol.command.SlideshowCommand
 import com.portoperatingsystem.tv.ui.PlayerActivity
 import java.io.File
 
 /**
- * Plays `play-uri` audio and the files `play-video` and `play-audio` deliver. The [MediaSession] makes the playback
- * visible to the platform like any other media app: media keys (play, pause, stop, next, previous) reach it,
- * [com.portoperatingsystem.tv.state.MediaSessionListener] reports its state, and Media3 keeps the service in the
- * foreground, with a notification, while it plays. Starting playback also opens [PlayerActivity], which shows this
+ * Plays `play-uri` audio, the files `play-video` and `play-audio` deliver, and the [Slideshow] that `show-images`
+ * builds and `add-images` and `remove-images` change. The [MediaSession] makes the playback visible to the platform
+ * like any other media app: media keys (play, pause, stop, next, previous) reach it,
+ * [com.portoperatingsystem.tv.state.MediaSessionListener] reports its state and queue, and Media3 keeps the service in
+ * the foreground, with a notification, while it plays. Starting playback also opens [PlayerActivity], which shows this
  * player. The service stops itself when playback ends, fails or is stopped, and that closes the screen.
  *
  * A file is downloaded once into the app cache and the local copy plays, so a loop never fetches again. A new request
- * replaces the item and deletes the previous file; destroying the service deletes them all.
+ * replaces the items and deletes the previous files; destroying the service deletes them all.
  */
-internal class PlaybackService : MediaSessionService() {
+internal class PlaybackService :
+    MediaSessionService(),
+    Slideshow.Owner {
     private var session: MediaSession? = null
     private lateinit var downloads: FileDownloads
-    private var current: File? = null
+    private lateinit var slideshow: Slideshow
+    private val requests = Requests()
 
-    // Counts requests, so a download that finishes after a newer request began is thrown away.
-    private var latest = 0
+    override val files = mutableMapOf<String, File>()
 
     override fun onCreate() {
         super.onCreate()
         downloads = FileDownloads(File(cacheDir, MEDIA_DIRECTORY))
         // A previous process may have been killed with files still on disk.
         downloads.deleteAll()
+        slideshow = Slideshow(downloads, requests, this)
         val player = ExoPlayer.Builder(this)
             .setAudioAttributes(attributes(video = false), true)
             .setHandleAudioBecomingNoisy(true)
             .build()
         player.addListener(StopWhenDone(::stopSelf))
+        player.addListener(HoldLast(slideshow))
         session = MediaSession.Builder(this, player).build()
         currentPlayer = player
     }
 
-    /** The player behind the session, for tests. */
-    internal val player: Player? get() = session?.player
+    /** The player behind the session, null once the service is destroyed. */
+    override val player: Player? get() = session?.player
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
@@ -58,15 +64,16 @@ internal class PlaybackService : MediaSessionService() {
         when (intent?.action) {
             ACTION_PLAY_URI -> playUri(PlayRequest(intent))
             ACTION_PLAY_FILE -> playFile(FileRequest(intent))
+            ACTION_SLIDESHOW -> slideshow.accept(SlideshowRequest(intent))
         }
         return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onDestroy() {
-        latest++
+        requests.next()
         currentPlayer = null
         downloads.close()
-        current = null
+        files.clear()
         session?.run {
             player.release()
             release()
@@ -76,43 +83,58 @@ internal class PlaybackService : MediaSessionService() {
     }
 
     private fun playUri(request: PlayRequest) {
-        latest++
+        requests.next()
         val metadata = MediaMetadata.Builder().setTitle(request.title).build()
         val item = MediaItem.Builder().setUri(request.uri).setMediaMetadata(metadata).build()
-        start(item, request.offsetMillis, video = false, loop = false, file = null)
+        start(Playlist(listOf(item), emptyMap()), request.offsetMillis, video = false, loop = false)
     }
 
     private fun playFile(request: FileRequest) {
-        val id = ++latest
-        downloads.download(request.url, request.mimeType) { file -> downloaded(id, request, file) }
-    }
-
-    private fun downloaded(id: Int, request: FileRequest, file: File?) {
-        when {
-            id != latest || session == null -> file?.delete()
-            file == null -> stopSelf()
-            else -> {
-                val metadata = MediaMetadata.Builder().setTitle(request.title).build()
-                val item = MediaItem.Builder()
-                    .setUri(Uri.fromFile(file))
-                    .setMimeType(request.mimeType)
-                    .setMediaMetadata(metadata)
-                    .build()
-                start(item, 0L, request.video, request.loop, file)
+        val id = requests.next()
+        downloads.download(request.url, request.mimeType) { file ->
+            when {
+                !requests.isLatest(id) || session == null -> file?.delete()
+                file == null -> stopSelf()
+                else -> start(
+                    Playlist.of(listOf(file), listOf(request.mimeType), request.title, imageMillis = null),
+                    0L,
+                    request.video,
+                    request.loop
+                )
             }
         }
     }
 
-    // Replaces whatever plays: the item, how it loops, what the audio is for, the screen, and the previous file.
-    private fun start(item: MediaItem, offsetMillis: Long, video: Boolean, loop: Boolean, file: File?) {
-        val player = session?.player ?: return
+    override fun startSlideshow(playlist: Playlist, loop: Boolean) =
+        start(playlist, 0L, video = true, loop = loop, slideshow = true)
+
+    // A command that found nothing to change must not keep alive a service that plays nothing.
+    override fun stopUnlessPlaying() {
+        if ((player?.mediaItemCount ?: 0) == 0) stopSelf()
+    }
+
+    // Replaces whatever plays: the items, how they loop, what the audio is for, the screen, and the previous files.
+    private fun start(
+        playlist: Playlist,
+        offsetMillis: Long,
+        video: Boolean,
+        loop: Boolean,
+        slideshow: Boolean = false
+    ) {
+        val player = player ?: return
         player.setAudioAttributes(attributes(video), true)
-        player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        player.setMediaItem(item, offsetMillis)
+        player.repeatMode = when {
+            !loop -> Player.REPEAT_MODE_OFF
+            slideshow -> Player.REPEAT_MODE_ALL
+            else -> Player.REPEAT_MODE_ONE
+        }
+        player.setMediaItems(playlist.items, 0, offsetMillis)
         player.prepare()
         player.play()
-        current?.delete()
-        current = file
+        files.values.forEach(File::delete)
+        files.clear()
+        files.putAll(playlist.files)
+        this.slideshow.replaced(slideshow, loop)
         startActivity(PlayerActivity.intent(this, video))
     }
 
@@ -130,6 +152,15 @@ internal class PlaybackService : MediaSessionService() {
         override fun onPlayerError(error: PlaybackException) {
             Log.w(TAG, "playback failed: ${error.errorCodeName}")
             stop()
+        }
+    }
+
+    /** Keeps the last image of a slideshow on screen whenever the current item or the playlist changes. */
+    private class HoldLast(private val slideshow: Slideshow) : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION, Player.EVENT_TIMELINE_CHANGED)) {
+                slideshow.holdLast()
+            }
         }
     }
 
@@ -152,6 +183,7 @@ internal class PlaybackService : MediaSessionService() {
     companion object {
         private const val ACTION_PLAY_URI = "com.portoperatingsystem.tv.action.PLAY_URI"
         private const val ACTION_PLAY_FILE = "com.portoperatingsystem.tv.action.PLAY_FILE"
+        private const val ACTION_SLIDESHOW = "com.portoperatingsystem.tv.action.SLIDESHOW"
         private const val EXTRA_URI = "uri"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_OFFSET_MILLIS = "offsetMillis"
@@ -177,6 +209,12 @@ internal class PlaybackService : MediaSessionService() {
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_OFFSET_MILLIS, offsetMillis)
 
+        /** The intent that hands [command] to the player. */
+        fun intent(context: Context, command: OwnPlayerCommand): Intent = when (command) {
+            is Command.PlayFile -> playFileIntent(context, command)
+            is SlideshowCommand -> slideshowIntent(context, command)
+        }
+
         /** The intent that downloads [file] and plays it, video or audio, repeating it when it loops. */
         fun playFileIntent(context: Context, file: Command.PlayFile): Intent =
             Intent(context, PlaybackService::class.java)
@@ -186,5 +224,9 @@ internal class PlaybackService : MediaSessionService() {
                 .putExtra(EXTRA_VIDEO, file.video)
                 .putExtra(EXTRA_LOOP, file.loop)
                 .putExtra(EXTRA_TITLE, file.title)
+
+        /** The intent that hands one slideshow command, or one part of it, to the player. */
+        fun slideshowIntent(context: Context, command: SlideshowCommand): Intent =
+            SlideshowRequest.fill(Intent(context, PlaybackService::class.java).setAction(ACTION_SLIDESHOW), command)
     }
 }

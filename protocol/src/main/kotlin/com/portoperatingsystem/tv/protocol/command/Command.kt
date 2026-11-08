@@ -20,7 +20,29 @@ public sealed interface Command {
         val video: Boolean,
         val loop: Boolean,
         val title: String? = null
-    ) : Command
+    ) : OwnPlayerCommand
+
+    /**
+     * One part of `media-player/show-images`: the images at [part]'s place in a slideshow that replaces what plays.
+     * The app acts once it holds every part of the set. Each image shows for [secondsPerImage]; [loop] starts over
+     * after the last instead of stopping, paused, on it.
+     */
+    public data class ShowImages(
+        val part: Part,
+        val images: List<ImageFile>,
+        val title: String?,
+        val secondsPerImage: Int,
+        val loop: Boolean
+    ) : SlideshowCommand
+
+    /**
+     * One part of `media-player/add-images`: images to insert into the slideshow on screen before the 1-based
+     * [position], or after the last when it is null.
+     */
+    public data class AddImages(val part: Part, val images: List<ImageFile>, val position: Int?) : SlideshowCommand
+
+    /** `media-player/remove-images`: drop the images at these 1-based [positions] of the slideshow on screen. */
+    public data class RemoveImages(val positions: List<Int>) : SlideshowCommand
 
     /** `notification/notification-trigger` (IMMEDIATE): show [title] and [body] on screen for [displayMillis]. */
     public data class ShowNotification(val title: String, val body: String, val displayMillis: Long) : Command
@@ -64,6 +86,21 @@ public sealed interface Command {
      */
     public data class ReportState(val requestId: String) : Command
 }
+
+/** The commands the app's own player carries out: playing a downloaded file, and the slideshows. */
+public sealed interface OwnPlayerCommand : Command
+
+/** The commands that build or change the slideshow the app's own player shows. */
+public sealed interface SlideshowCommand : OwnPlayerCommand
+
+/** A downloadable image: a public HTTPS [url] (short-lived) and its [mimeType]. */
+public data class ImageFile(val url: String, val mimeType: String)
+
+/**
+ * Where a push sits in a command split across several: part [index] (0-based) of [count] of the set named [set].
+ * FCM data messages hold 4 KB, so the plugin sends the links of a slideshow in parts.
+ */
+public data class Part(val set: String, val index: Int, val count: Int)
 
 /** The remote-control keys the accessibility service can perform. */
 public enum class NavigationKey { UP, DOWN, LEFT, RIGHT, SELECT, BACK, HOME }

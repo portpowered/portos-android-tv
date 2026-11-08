@@ -134,6 +134,17 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
      with the standard controls (play and pause, seek bar, position and duration; audio shows them on a plain
      background). It closes itself when the player goes idle or ends, so the stop key returns to the previous app, and
      Back stops playback and closes it. The same background-launch check as `play-uri` applies.
+   - **Show a slideshow** (`media-player/show-images`, `add-images`, `remove-images`). The plugin publishes each
+     image and sends the links in parts (`part: {set, index, count}`), as many per push as fit 4 KB; `ImageParts`
+     collects the parts of a set, in any order, and the app acts once it holds them all. `PlaybackService` downloads
+     every image first (state LOADING), then plays them as Media3 image items (`setImageDurationMs`,
+     `secondsPerImage`) in `PlayerActivity`, each titled with the slideshow `title`. `loop: true` sets
+     `REPEAT_MODE_ALL`; without it the player pauses at the end of the last image, which stays on screen. `next`,
+     `previous`, `pause`, `play` and `stop` work as on any playlist. `add-images` downloads its images and inserts them
+     before the 1-based `position` (default: after the last); `remove-images` drops the 1-based `positions` and their
+     files, and removing all ends the slideshow. Either is ignored, and logged, when no slideshow shows, a position is
+     past the end, an add would pass 30 images or a download fails. Only `show-images` needs the background-launch
+     check.
    - **Seek and skip** (`media-player/seek`, `skip-forward`, `skip-backward`, `start-over`). They go to the session
      `StateReporter` would report (the one playing, else loading, else paused: `mostRelevant`) through its
      `MediaController.TransportControls.seekTo`, not through media keys. `seek` jumps to `positionMilliseconds`; a skip
@@ -209,6 +220,9 @@ The files commands carry a URL, never the bytes:
 | --- | --- |
 | `media-player/play-video` | `{"video":{"url":"https://...","mimeType":"video/mp4","expiresAt":"<RFC 3339>"},"loop":true,"title":"Dance"}` |
 | `media-player/play-audio` | `{"audio":{"url":"https://...","mimeType":"audio/mpeg","expiresAt":"<RFC 3339>"}}` |
+| `media-player/show-images` | `{"part":{"set":"<id>","index":0,"count":2},"images":[{"url":"https://...","mimeType":"image/jpeg","expiresAt":"<RFC 3339>"}],"title":"Beach week","secondsPerImage":8,"loop":false}` |
+| `media-player/add-images` | `{"part":{"set":"<id>","index":0,"count":1},"images":[...],"position":3}` |
+| `media-player/remove-images` | `{"positions":[2,5]}` |
 
 `url` must be public HTTPS (a host, no credentials). A video's `mimeType` must be `video/mp4`; an audio file's must
 start with `audio/`. `loop` is optional and defaults to `false` (video only; audio never loops). `expiresAt` is for the
@@ -216,6 +230,11 @@ sender's bookkeeping; the app downloads immediately and does not read it. `title
 media session title, so the state report's `nowPlaying.name` says which file plays. Playback reads `LOADING` while
 the file downloads, then `PLAYING`; a `pause` in that window starts the file paused at 0. Anything else is rejected as an invalid
 message. `SUCCEEDED` on the cloud side means the push was delivered, not that the TV is playing.
+
+A slideshow push names its place in the set: `index` (0-based) of `count` parts (1 to 30), all with the same `set`
+and message id; every part repeats `title`, `secondsPerImage` and `loop`. `images` is 1 to 30 entries of `image/jpeg`,
+`image/png` or `image/webp`; `secondsPerImage` is 2 to 60 (default 8); `position` and `positions` are 1 to 30, and
+`positions` holds distinct values.
 
 ### State report format
 
@@ -230,7 +249,7 @@ message. `SUCCEEDED` on the cloud side means the push was delivered, not that th
   "requestId": "<message id; only on a report that answers report-attributes>",
   "reports": {
     "playbackState": "PLAYING",
-    "nowPlaying": { "active": true, "app": "com.google.android.youtube.tv", "provider": "YOUTUBE", "mediaId": "portos-media://portoperatingsystem.com/youtube/video/video/dQw4w9WgXcQ", "name": "…", "artist": "…", "positionMs": 1234 },
+    "nowPlaying": { "active": true, "app": "com.google.android.youtube.tv", "provider": "YOUTUBE", "mediaId": "portos-media://portoperatingsystem.com/youtube/video/video/dQw4w9WgXcQ", "name": "…", "artist": "…", "positionMs": 1234, "queuePosition": 4, "queueLength": 20 },
     "volume": 40,
     "muted": false,
     "connectivity": { "backgroundLaunchAllowed": true, "mediaAccessAllowed": true }
@@ -241,7 +260,9 @@ message. `SUCCEEDED` on the cloud side means the push was delivered, not that th
 `provider` and `mediaId` are sent only when the session's metadata proves them (`MediaIdentity`: the package names the
 provider; `METADATA_KEY_MEDIA_ID`, `METADATA_KEY_MEDIA_URI` and the description's id/uri give a `spotify:track:` URI,
 an open.spotify.com URL, an 11 character YouTube video id or a watch URL), never guessed. `positionMs` is the session's
-position advanced by the time since Android last updated it, at the playback speed.
+position advanced by the time since Android last updated it, at the playback speed. `queuePosition` (1-based) and
+`queueLength` place the session's active queue item in its queue, such as image 4 of a 20-image slideshow; both are
+omitted when the session publishes no queue.
 `playbackState` and `nowPlaying` are omitted when unknown (no media session, or media access not granted);
 the plugin treats missing values as unknown. `iat` and `sampledAtMs` (when the state was read, in milliseconds) must be within five minutes and `jti` is single use.
 The plugin stamps every attribute with `sampledAtMs`: the host refuses a different value at the same sample time, so a whole-second stamp collides when the TV reports twice in a second.
@@ -280,7 +301,7 @@ devices/android-tv/
         ├── messaging/       FirebaseMessagingService, token rotation
         ├── control/         command execution: launcher, media keys, volume, notification and audio dispatch,
         │                    the accessibility service (remote keys, screenshots) and its upload
-        ├── playback/        play-uri, play-video, play-audio: Media3 ExoPlayer + MediaSession foreground service,
+        ├── playback/        play-uri, play-video, play-audio, slideshows: Media3 ExoPlayer + MediaSession foreground service,
         │                    file downloads
         ├── state/           media-session listener, state snapshot and signed reports, workers
         └── ui/              pairing and status screens, text notification overlay, the full-screen player (leanback)

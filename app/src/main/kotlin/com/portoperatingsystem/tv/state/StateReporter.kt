@@ -106,7 +106,8 @@ internal class StateReporter(
                 )
             },
             provider = MediaIdentity.provider(app),
-            mediaId = MediaIdentity.mediaId(app, identifiers(metadata))
+            mediaId = MediaIdentity.mediaId(app, identifiers(metadata)),
+            queue = queuePlace(controller.queue?.map { it.queueId }, state?.activeQueueItemId)
         )
     }
 
