@@ -3,6 +3,7 @@ package com.portoperatingsystem.tv.playback
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -34,7 +35,10 @@ internal class PlaybackService :
     Slideshow.Owner {
     private var session: MediaSession? = null
     private lateinit var downloads: FileDownloads
-    private lateinit var slideshow: Slideshow
+
+    @VisibleForTesting
+    internal lateinit var slideshow: Slideshow
+        private set
     private val requests = Requests()
 
     override val files = mutableMapOf<String, File>()

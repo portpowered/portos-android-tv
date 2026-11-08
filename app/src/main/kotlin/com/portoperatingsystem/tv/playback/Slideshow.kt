@@ -1,7 +1,9 @@
 package com.portoperatingsystem.tv.playback
 
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -12,7 +14,7 @@ import java.io.File
 /**
  * The slideshow [PlaybackService] shows: a playlist of images, each shown for its duration. Showing one downloads
  * every image before the first shows, so it never stalls; adding and removing images change the slideshow on screen.
- * Without loop the player pauses at the end of the last image instead of ending, which keeps that image up; with loop
+ * Without loop the player pauses just before the last image ends, which keeps that image up; with loop
  * it starts over.
  *
  * The service owns the player, the downloads and the files; [Owner] is what this needs from it.
@@ -120,21 +122,42 @@ internal class Slideshow(
     }
 
     /**
-     * Pauses at the end of the last image of a slideshow that does not loop, which keeps that image on screen; the
-     * service calls it whenever the current item or the playlist changes. Pausing at the end of an item is a Media3
-     * opt-in API; the pinned 1.5.1 is what it matches.
+     * Pauses a slideshow that does not loop just before its last image ends, which keeps that image on screen. The
+     * last item must never reach its end: the player then ends, and the service and the player screen close on that.
+     * (Media3's pauseAtEndOfMediaItems does not hold the final item; it ends anyway.) The service calls this whenever
+     * the current item or the playlist changes, so the hold always sits on the current last image. Player messages
+     * are a Media3 opt-in API; the pinned 1.5.1 is what it matches.
      */
     @OptIn(UnstableApi::class)
     fun holdLast() {
+        cancelHold?.invoke()
+        cancelHold = null
+        holdsAt = null
         val player = owner.player as? ExoPlayer ?: return
-        player.pauseAtEndOfMediaItems =
-            showing &&
-            !loops &&
-            player.currentMediaItemIndex == player.mediaItemCount - 1
+        if (!showing || loops || player.mediaItemCount == 0) return
+        val at = player.mediaItemCount - 1 to (imageMillis - HOLD_MARGIN_MILLIS).coerceAtLeast(0L)
+        val message = player.createMessage { _, _ -> owner.player?.pause() }
+            .setPosition(at.first, at.second)
+            .setLooper(Looper.getMainLooper())
+            .setDeleteAfterDelivery(true)
+            .send()
+        cancelHold = { message.cancel() }
+        holdsAt = at
     }
+
+    // Cancels the pending pause; the message itself is an opt-in type, so only holdLast names it.
+    private var cancelHold: (() -> Unit)? = null
+
+    /** The item index and position at which the slideshow pauses on its last image, or null when it does not. */
+    @VisibleForTesting
+    var holdsAt: Pair<Int, Long>? = null
+        private set
 
     private companion object {
         const val MILLIS = 1000L
+
+        // How long before the end of the last image the slideshow pauses, so the pause lands before the player ends.
+        const val HOLD_MARGIN_MILLIS = 250L
         const val TAG = "PortOsPlayback"
     }
 }
