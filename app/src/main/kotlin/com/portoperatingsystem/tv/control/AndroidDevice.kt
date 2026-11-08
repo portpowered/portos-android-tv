@@ -42,8 +42,8 @@ internal class AndroidDevice(private val context: Context) : DevicePort {
         context.startService(PlaybackService.playIntent(context, uri, title, offsetMillis))
     }
 
-    override fun ownPlayer(command: OwnPlayerCommand) {
-        context.startService(PlaybackService.intent(context, command))
+    override fun ownPlayer(command: OwnPlayerCommand, messageId: String?) {
+        context.startService(PlaybackService.intent(context, command, messageId))
     }
 
     // On the TV a media key this app dispatches never reaches its own Media3 session, so the app's player takes the

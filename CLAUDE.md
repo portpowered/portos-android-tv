@@ -66,3 +66,10 @@ keep accepting older app versions, because installed TVs update late.
   that match a declared `<queries><intent>` are visible, so `AndroidApps` works only because the manifest declares the
   LEANBACK_LAUNCHER and LAUNCHER intents. Change one without the other and `launchable()` quietly returns less. A launch
   uses the same `canLaunchFromBackground` gate as play-media.
+- `play-video`, `play-audio`, `show-images`, `add-images` and `remove-images` are answered with an `outcome` claim on a
+  report tagged with the command's message id (`Answers` in `state/CommandOutcome.kt`, one answer per id; a command
+  that replaces an in-flight one answers it `REPLACED`). The sink is `PlaybackService.outcomes`, wired in `AppGraph`.
+  Show and file commands answer from the player listener on `STATE_READY`; add/remove answer when the items change.
+  `StateReporter.reportOutcome` waits for the media session to show the new queue length before reading state.
+  Robolectric's ExoPlayer never reaches READY, so tests call `PlaybackService.answerWhenShown` directly. Keep the
+  plugin's `playback-result` handling and the failure codes in step with this.

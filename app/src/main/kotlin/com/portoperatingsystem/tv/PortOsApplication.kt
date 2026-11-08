@@ -37,8 +37,10 @@ import com.portoperatingsystem.tv.control.SessionControl
 import com.portoperatingsystem.tv.control.StatePort
 import com.portoperatingsystem.tv.control.activePlayerSessions
 import com.portoperatingsystem.tv.control.hasTouchInput
+import com.portoperatingsystem.tv.playback.PlaybackService
 import com.portoperatingsystem.tv.state.CoalescedRequests
 import com.portoperatingsystem.tv.state.HeartbeatWorker
+import com.portoperatingsystem.tv.state.OutcomeSink
 import com.portoperatingsystem.tv.state.PlayingReports
 import com.portoperatingsystem.tv.state.ReportWorker
 import com.portoperatingsystem.tv.state.StateReporter
@@ -114,6 +116,13 @@ internal class AppGraph(private val context: Context) {
         },
         onReported = { playing -> playingReports.update(playing) }
     )
+
+    init {
+        // The player answers the commands that wait for what happened on the TV.
+        PlaybackService.outcomes = OutcomeSink { commandId, outcome ->
+            background.execute { reporter.reportOutcome(commandId, outcome) }
+        }
+    }
 
     private val adbProbe = Executors.newSingleThreadExecutor()
     private val adbProbing = AtomicBoolean(false)

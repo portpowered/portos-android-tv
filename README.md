@@ -231,6 +231,10 @@ media session title, so the state report's `nowPlaying.name` says which file pla
 the file downloads, then `PLAYING`; a `pause` in that window starts the file paused at 0. Anything else is rejected as an invalid
 message. `SUCCEEDED` on the cloud side means the push was delivered, not that the TV is playing.
 
+`play-video`, `play-audio`, `show-images`, `add-images` and `remove-images` are answered: the Port OS caller waits
+(up to 60 s) for the TV to say what happened, and the app posts one state report with an `outcome` claim (see State
+report format). A slideshow answers once the whole set acted, under the message id (the part `set`).
+
 A slideshow push names its place in the set: `index` (0-based) of `count` parts (1 to 30), all with the same `set`
 and message id; every part repeats `title`, `secondsPerImage` and `loop`. `images` is 1 to 30 entries of `image/jpeg`,
 `image/png` or `image/webp`; `secondsPerImage` is 2 to 60 (default 8); `position` and `positions` are 1 to 30, and
@@ -268,6 +272,40 @@ the plugin treats missing values as unknown. `iat` and `sampledAtMs` (when the s
 The plugin stamps every attribute with `sampledAtMs`: the host refuses a different value at the same sample time, so a whole-second stamp collides when the TV reports twice in a second.
 `connectivity.accessibilityEnabled` says whether the accessibility service is switched on; the plugin logs a
 warning when it is false and older apps simply omit it.
+
+#### Outcome of a media command
+
+After `play-video`, `play-audio`, `show-images`, `add-images` or `remove-images` the app posts one report exactly
+like the answer to `report-attributes` (same JWS, `requestId` = the command's message id, the usual `reports` read
+after the change, so `nowPlaying.queuePosition`, `queueLength`, `name` and `playbackState` are the new state) plus an
+`outcome` claim. Each command id is answered once.
+
+```json
+{ "iat": 1761990000, "sampledAtMs": 1761990000123, "jti": "…", "requestId": "<command message id>", "reports": { "…": "…" },
+  "outcome": { "secondsPerImage": 8, "loop": false } }
+{ "…": "…", "outcome": { "failure": { "code": "NO_SLIDESHOW", "message": "no slideshow is showing" } } }
+```
+
+On success `outcome` holds `secondsPerImage` (slideshows only) and `loop` (slideshows, `play-video`, `play-audio`).
+Otherwise `outcome.failure` holds a `code` and a short human `message`; the report still carries the state:
+
+| `code` | When |
+| --- | --- |
+| `NO_SLIDESHOW` | `add-images` or `remove-images` while no slideshow shows |
+| `TOO_MANY_IMAGES` | `add-images` would take the slideshow past 30 images |
+| `POSITION_OUT_OF_RANGE` | `remove-images` names a position past the end; the message gives the position and the length |
+| `DOWNLOAD_FAILED` | a file or image download failed; the message names the image (1-based) |
+| `PLAYBACK_FAILED` | the player failed on the first item before it showed, or the app could not start playback (message says why) |
+| `REPLACED` | a newer command replaced this one before it took effect (for example a second `show-images` while the first downloads) |
+
+When it is sent: `show-images`, `play-video` and `play-audio` answer when the first item is ready on screen (after all
+downloads), or fail on a download or player error; `add-images` and `remove-images` answer as soon as the images are
+inserted or removed (or refused). The report waits up to 3 s for the media session to show the new queue length, since
+Android publishes a Media3 change a moment late, and is retried up to three times when delivery fails. A command that
+never reaches the TV or whose answer is lost is the caller's timeout; nothing is answered twice.
+
+Previous: the app's player always steps back a whole item (a slideshow goes to the previous image whatever the time
+spent on this one); a single video or audio file has no previous item, so previous restarts it.
 
 A screenshot answer uses the same envelope with a `snapshot` claim instead of `reports`:
 

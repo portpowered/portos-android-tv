@@ -58,7 +58,7 @@ private class FakeDevice(
         audio += Triple(uri, title, offsetMillis)
     }
 
-    override fun ownPlayer(command: OwnPlayerCommand) {
+    override fun ownPlayer(command: OwnPlayerCommand, messageId: String?) {
         when (command) {
             is Command.PlayFile -> files += command
             is SlideshowCommand -> slideshows += command

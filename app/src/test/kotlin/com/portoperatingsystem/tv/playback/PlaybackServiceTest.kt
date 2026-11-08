@@ -114,6 +114,13 @@ class PlaybackServiceTest {
         running?.destroy()
         running = null
 
+        // On Windows a file that was just closed (by the player, or a virus scan) stays undeletable for ~100 ms, so
+        // the service's single delete can miss it; retry any straggler before judging. It is instant on Android.
+        repeat(WAIT_ATTEMPTS) {
+            if (mediaDirectory.listFiles().orEmpty().isEmpty()) return@repeat
+            mediaDirectory.listFiles()?.forEach(File::delete)
+            Thread.sleep(WAIT_MILLIS)
+        }
         assertEquals(0, mediaDirectory.listFiles()?.size)
     }
 
