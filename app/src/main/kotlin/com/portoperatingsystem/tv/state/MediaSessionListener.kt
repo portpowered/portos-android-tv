@@ -3,6 +3,7 @@ package com.portoperatingsystem.tv.state
 import android.content.ComponentName
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.service.notification.NotificationListenerService
@@ -19,6 +20,8 @@ internal class MediaSessionListener : NotificationListenerService() {
         override fun onPlaybackStateChanged(state: PlaybackState?) = changed()
 
         override fun onMetadataChanged(metadata: MediaMetadata?) = changed()
+
+        override fun onQueueChanged(queue: MutableList<MediaSession.QueueItem>?) = changed()
     }
 
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->

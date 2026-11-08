@@ -21,8 +21,18 @@ internal data class NowPlaying(
     val artist: String?,
     val positionMs: Long?,
     val provider: String? = null,
-    val mediaId: String? = null
+    val mediaId: String? = null,
+    val queue: QueuePlace? = null
 )
+
+/** Where the current item sits in the session's queue: [position] (1-based) of [length], as in "image 4 of 20". */
+internal data class QueuePlace(val position: Int, val length: Int)
+
+/** The place of the queue item [activeId] among [queueIds]; null when the session has no queue or names no item. */
+internal fun queuePlace(queueIds: List<Long>?, activeId: Long?): QueuePlace? {
+    val index = queueIds?.indexOf(activeId ?: return null) ?: return null
+    return if (index < 0) null else QueuePlace(index + 1, queueIds.size)
+}
 
 /**
  * Where playback is now. Android stores the position at the session's last update, so a playing session's position
@@ -73,6 +83,10 @@ internal data class StateSnapshot(
                                 media.title?.let { put("name", it) }
                                 media.artist?.let { put("artist", it) }
                                 media.positionMs?.let { put("positionMs", it) }
+                                media.queue?.let {
+                                    put("queuePosition", it.position)
+                                    put("queueLength", it.length)
+                                }
                             }
                         )
                     }

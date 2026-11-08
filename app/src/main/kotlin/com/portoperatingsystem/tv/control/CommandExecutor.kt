@@ -2,6 +2,7 @@ package com.portoperatingsystem.tv.control
 
 import com.portoperatingsystem.tv.protocol.command.Command
 import com.portoperatingsystem.tv.protocol.command.NavigationKey
+import com.portoperatingsystem.tv.protocol.command.OwnPlayerCommand
 import com.portoperatingsystem.tv.protocol.command.TransportAction
 import com.portoperatingsystem.tv.protocol.media.LaunchTarget
 import kotlin.math.roundToInt
@@ -23,8 +24,10 @@ internal interface DevicePort {
     /** Plays the audio file at [uri], starting [offsetMillis] in. */
     fun playUri(uri: String, title: String?, offsetMillis: Long)
 
-    /** Downloads [file] and plays it full screen: video or audio, repeating when it loops, named by its title. */
-    fun playFile(file: Command.PlayFile)
+    /**
+     * Hands a command to the app's own player: download a file and play it, or show, extend or trim a slideshow.
+     */
+    fun ownPlayer(command: OwnPlayerCommand)
 
     /** Sends a media key to the active media session. */
     fun mediaKey(action: TransportAction)
@@ -146,7 +149,11 @@ internal class CommandExecutor(
             device.showNotification(command.title, command.body, command.displayMillis)
         }
         is Command.PlayUri -> fromBackground { device.playUri(command.uri, command.title, command.offsetMillis) }
-        is Command.PlayFile -> fromBackground { device.playFile(command) }
+        // Adding and removing images change only the slideshow on screen, so they open nothing; the rest open the
+        // player.
+        is Command.AddImages -> done { device.ownPlayer(command) }
+        is Command.RemoveImages -> done { device.ownPlayer(command) }
+        is OwnPlayerCommand -> fromBackground { device.ownPlayer(command) }
         is Command.Transport -> done { device.mediaKey(command.action) }
         is Command.Seek -> sessions.seekTo(command.positionMillis)
         is Command.Skip -> sessions.skip(command.deltaMillis)

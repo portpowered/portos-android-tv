@@ -36,13 +36,13 @@ internal fun decodePlayAudio(body: JsonObject): Outcome {
     return Outcome.Accept(Command.PlayFile(url, mimeType, video = false, loop = false, title = title.value))
 }
 
-private fun JsonObject.publicUrl(): String? = string("url")?.takeIf(::isPublicHttps)
+internal fun JsonObject.publicUrl(): String? = string("url")?.takeIf(::isPublicHttps)
 
 /** An optional field: [value] is null when absent. */
-private class Optional(val value: String?)
+internal class Optional(val value: String?)
 
 // Absent is an empty [Optional]; present must be a JSON string, so null here means "invalid".
-private fun JsonObject.title(): Optional? = if (containsKey("title")) {
+internal fun JsonObject.title(): Optional? = if (containsKey("title")) {
     (this["title"] as? JsonPrimitive)?.takeIf {
         it.isString
     }?.contentOrNull?.let(::Optional)
@@ -51,5 +51,5 @@ private fun JsonObject.title(): Optional? = if (containsKey("title")) {
 }
 
 // Absent means false; present must be a JSON boolean, so null here means "invalid".
-private fun JsonObject.loop(): Boolean? =
+internal fun JsonObject.loop(): Boolean? =
     if (containsKey("loop")) (this["loop"] as? JsonPrimitive)?.takeUnless { it.isString }?.booleanOrNull else false

@@ -1,7 +1,11 @@
 package com.portoperatingsystem.tv.control
 
 import com.portoperatingsystem.tv.protocol.command.Command
+import com.portoperatingsystem.tv.protocol.command.ImageFile
 import com.portoperatingsystem.tv.protocol.command.NavigationKey
+import com.portoperatingsystem.tv.protocol.command.OwnPlayerCommand
+import com.portoperatingsystem.tv.protocol.command.Part
+import com.portoperatingsystem.tv.protocol.command.SlideshowCommand
 import com.portoperatingsystem.tv.protocol.command.TransportAction
 import com.portoperatingsystem.tv.protocol.media.LaunchTarget
 import kotlin.test.Test
@@ -33,6 +37,7 @@ private class FakeDevice(
     val stateReads = mutableListOf<String>()
     var sessionResult: Execution = Execution.Done
     val seeks = mutableListOf<Long>()
+    val slideshows = mutableListOf<SlideshowCommand>()
     val skips = mutableListOf<Long>()
     var openable: Set<String> = setOf("com.netflix.ninja")
     val opened = mutableListOf<String>()
@@ -53,8 +58,11 @@ private class FakeDevice(
         audio += Triple(uri, title, offsetMillis)
     }
 
-    override fun playFile(file: Command.PlayFile) {
-        files += file
+    override fun ownPlayer(command: OwnPlayerCommand) {
+        when (command) {
+            is Command.PlayFile -> files += command
+            is SlideshowCommand -> slideshows += command
+        }
     }
 
     override fun mediaKey(action: TransportAction) {
@@ -239,6 +247,31 @@ class CommandExecutorTest {
         assertEquals(Execution.Done, executorFor(device).execute(video))
         assertEquals(Execution.Done, executorFor(device).execute(audio))
         assertEquals(listOf(video, audio), device.files)
+    }
+
+    @Test
+    fun slideshowCommandsReachThePlayer() {
+        val device = FakeDevice()
+        val image = ImageFile("https://example.com/a.jpg", "image/jpeg")
+        val commands = listOf(
+            Command.ShowImages(Part("s", 0, 1), listOf(image), "Beach", 8, loop = false),
+            Command.AddImages(Part("a", 0, 1), listOf(image), position = 2),
+            Command.RemoveImages(listOf(1))
+        )
+        commands.forEach { assertEquals(Execution.Done, executorFor(device).execute(it)) }
+        assertEquals(commands, device.slideshows)
+    }
+
+    @Test
+    fun onlyShowingImagesNeedsBackgroundPermission() {
+        val device = FakeDevice(backgroundLaunch = false)
+        val image = ImageFile("https://example.com/a.jpg", "image/jpeg")
+        assertEquals(
+            Execution.Failed(ExecutionFailure.BACKGROUND_LAUNCH_NOT_ALLOWED),
+            executorFor(device).execute(Command.ShowImages(Part("s", 0, 1), listOf(image), null, 8, loop = false))
+        )
+        assertEquals(Execution.Done, executorFor(device).execute(Command.RemoveImages(listOf(1))))
+        assertEquals(listOf<SlideshowCommand>(Command.RemoveImages(listOf(1))), device.slideshows)
     }
 
     @Test

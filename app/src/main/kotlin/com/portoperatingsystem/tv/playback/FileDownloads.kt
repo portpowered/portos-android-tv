@@ -13,18 +13,38 @@ import okhttp3.Request
 import okhttp3.Response
 
 /**
- * Downloads the files `play-video` and `play-audio` point at into [directory], one at a time and off the main thread.
- * The link expires within minutes, so the player plays the local copy and a loop never fetches again.
+ * Downloads the files `play-video`, `play-audio` and the slideshow messages point at into [directory], one at a time
+ * and off the main thread. The link expires within minutes, so the player plays the local copy and a loop never fetches
+ * again.
  */
 internal class FileDownloads(private val directory: File, private val client: OkHttpClient = OkHttpClient()) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
     /** Fetches [url] and calls [done], on the main thread, with the saved file, or null when the download failed. */
-    fun download(url: String, mimeType: String, done: (File?) -> Unit) {
+    fun download(url: String, mimeType: String, done: (File?) -> Unit) =
+        downloadAll(listOf(url to mimeType)) { saved -> done(saved?.single()) }
+
+    /**
+     * Fetches every file of [files] (url and mimeType), in order, and calls [done], on the main thread, with the saved
+     * files in the same order, or with null, keeping none, when any download failed. After [close] nothing is kept
+     * and [done] is not called, so a download that was still running leaves no file behind.
+     */
+    fun downloadAll(files: List<Pair<String, String>>, done: (List<File>?) -> Unit) {
         executor.execute {
-            val file = fetch(url, mimeType)
-            main.post { done(file) }
+            val saved = mutableListOf<File>()
+            for ((url, mimeType) in files) {
+                val file = fetch(url, mimeType)?.also(saved::add)
+                if (file == null || executor.isShutdown) break
+            }
+            when {
+                executor.isShutdown -> saved.forEach(File::delete)
+                saved.size < files.size -> {
+                    saved.forEach(File::delete)
+                    main.post { done(null) }
+                }
+                else -> main.post { done(saved) }
+            }
         }
     }
 
