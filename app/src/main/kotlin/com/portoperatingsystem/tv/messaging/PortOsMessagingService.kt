@@ -10,9 +10,13 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.portoperatingsystem.tv.PortOsApplication
 import com.portoperatingsystem.tv.control.Execution
+import com.portoperatingsystem.tv.playback.PlaybackService
 import com.portoperatingsystem.tv.protocol.command.Command
 import com.portoperatingsystem.tv.protocol.command.CommandDecoder
 import com.portoperatingsystem.tv.protocol.command.Decoded
+import com.portoperatingsystem.tv.protocol.command.OwnPlayerCommand
+import com.portoperatingsystem.tv.state.CommandOutcome
+import com.portoperatingsystem.tv.state.FailureCode
 import com.portoperatingsystem.tv.state.TokenRotationWorker
 
 /** Receives Port OS commands over FCM, runs them, and asks for a state report so the result is visible. */
@@ -25,11 +29,20 @@ internal class PortOsMessagingService : FirebaseMessagingService() {
             is Decoded.Accepted -> {
                 val delivery = decoded.delivery
                 stateRead = delivery.command is Command.ReportState
-                val execution = graph.executor.execute(delivery.command)
+                val execution = graph.executor.execute(delivery.command, delivery.messageId)
                 if (!stateRead) graph.reporter.commandRan()
                 when (execution) {
                     Execution.Done -> Log.i(TAG, "command ${delivery.messageId} done")
-                    is Execution.Failed -> Log.w(TAG, "command ${delivery.messageId} failed: ${execution.failure}")
+                    is Execution.Failed -> {
+                        Log.w(TAG, "command ${delivery.messageId} failed: ${execution.failure}")
+                        // The caller of a command that is answered with an outcome is waiting for one.
+                        if (delivery.command is OwnPlayerCommand) {
+                            PlaybackService.outcomes.answer(
+                                delivery.messageId,
+                                CommandOutcome.Failed(FailureCode.PLAYBACK_FAILED, execution.failure.reason)
+                            )
+                        }
+                    }
                 }
             }
             is Decoded.Rejected -> Log.w(TAG, "command ${decoded.messageId} rejected: ${decoded.rejection}")

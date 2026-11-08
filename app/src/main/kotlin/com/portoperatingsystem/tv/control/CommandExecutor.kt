@@ -26,8 +26,9 @@ internal interface DevicePort {
 
     /**
      * Hands a command to the app's own player: download a file and play it, or show, extend or trim a slideshow.
+     * The player answers the command with Port OS under [messageId] once it acted, or says why it could not.
      */
-    fun ownPlayer(command: OwnPlayerCommand)
+    fun ownPlayer(command: OwnPlayerCommand, messageId: String?)
 
     /** Sends a media key to the active media session. */
     fun mediaKey(action: TransportAction)
@@ -143,7 +144,7 @@ internal class CommandExecutor(
 ) {
     // One branch per command: a flat dispatch table, which splitting would only scatter.
     @Suppress("CyclomaticComplexMethod")
-    fun execute(command: Command): Execution = when (command) {
+    fun execute(command: Command, messageId: String? = null): Execution = when (command) {
         is Command.PlayMedia -> launch(command.target)
         is Command.ShowNotification -> fromBackground {
             device.showNotification(command.title, command.body, command.displayMillis)
@@ -151,9 +152,9 @@ internal class CommandExecutor(
         is Command.PlayUri -> fromBackground { device.playUri(command.uri, command.title, command.offsetMillis) }
         // Adding and removing images change only the slideshow on screen, so they open nothing; the rest open the
         // player.
-        is Command.AddImages -> done { device.ownPlayer(command) }
-        is Command.RemoveImages -> done { device.ownPlayer(command) }
-        is OwnPlayerCommand -> fromBackground { device.ownPlayer(command) }
+        is Command.AddImages -> done { device.ownPlayer(command, messageId) }
+        is Command.RemoveImages -> done { device.ownPlayer(command, messageId) }
+        is OwnPlayerCommand -> fromBackground { device.ownPlayer(command, messageId) }
         is Command.Transport -> done { device.mediaKey(command.action) }
         is Command.Seek -> sessions.seekTo(command.positionMillis)
         is Command.Skip -> sessions.skip(command.deltaMillis)

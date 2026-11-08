@@ -23,14 +23,15 @@ internal class FileDownloads(private val directory: File, private val client: Ok
 
     /** Fetches [url] and calls [done], on the main thread, with the saved file, or null when the download failed. */
     fun download(url: String, mimeType: String, done: (File?) -> Unit) =
-        downloadAll(listOf(url to mimeType)) { saved -> done(saved?.single()) }
+        downloadAll(listOf(url to mimeType)) { saved, _ -> done(saved?.single()) }
 
     /**
      * Fetches every file of [files] (url and mimeType), in order, and calls [done], on the main thread, with the saved
-     * files in the same order, or with null, keeping none, when any download failed. After [close] nothing is kept
-     * and [done] is not called, so a download that was still running leaves no file behind.
+     * files in the same order, or with null, keeping none, when any download failed; the second argument is then the
+     * 0-based index of the file that failed (else -1). After [close] nothing is kept and [done] is not called, so a
+     * download that was still running leaves no file behind.
      */
-    fun downloadAll(files: List<Pair<String, String>>, done: (List<File>?) -> Unit) {
+    fun downloadAll(files: List<Pair<String, String>>, done: (List<File>?, Int) -> Unit) {
         executor.execute {
             val saved = mutableListOf<File>()
             for ((url, mimeType) in files) {
@@ -41,9 +42,9 @@ internal class FileDownloads(private val directory: File, private val client: Ok
                 executor.isShutdown -> saved.forEach(File::delete)
                 saved.size < files.size -> {
                     saved.forEach(File::delete)
-                    main.post { done(null) }
+                    main.post { done(null, saved.size) }
                 }
-                else -> main.post { done(saved) }
+                else -> main.post { done(saved, NONE) }
             }
         }
     }
@@ -88,5 +89,6 @@ internal class FileDownloads(private val directory: File, private val client: Ok
 
     private companion object {
         const val TAG = "PortOsPlayback"
+        const val NONE = -1
     }
 }

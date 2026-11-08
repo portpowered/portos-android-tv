@@ -46,17 +46,45 @@ internal class StateReporter(
         return report(requestId)
     }
 
+    /**
+     * Answers the command with message id [commandId]: a report tagged with it, carrying [outcome] next to the state
+     * after the command. When the command changed the queue the report waits (up to [OUTCOME_SETTLE_MILLIS]) for the
+     * media session to show the new queue length, because Android publishes a Media3 change a moment after it
+     * happens. Retries a delivery that failed for a reason worth retrying.
+     */
+    fun reportOutcome(commandId: String, outcome: CommandOutcome) {
+        repeat(OUTCOME_ATTEMPTS) {
+            if (report(commandId, outcome)) return
+            Thread.sleep(OUTCOME_RETRY_MILLIS)
+        }
+    }
+
     /** Reports now. Returns false when the report could not be delivered and is worth retrying. */
-    fun report(requestId: String? = null): Boolean {
+    fun report(requestId: String? = null, outcome: CommandOutcome? = null): Boolean {
         val linkId = session.authLinkId ?: return true
         return try {
-            val snapshot = snapshot()
-            client.report(linkId, snapshot.claims(System.currentTimeMillis() / MILLIS, requestId = requestId))
+            val snapshot = if (outcome == null) snapshot() else settledSnapshot(outcome)
+            client.report(
+                linkId,
+                snapshot.claims(System.currentTimeMillis() / MILLIS, requestId = requestId, outcome = outcome)
+            )
             onReported(snapshot.playback == Playback.PLAYING)
             true
         } catch (error: PortOsException) {
             Log.w(TAG, "state report failed: ${error.message}")
             !error.retryable
+        }
+    }
+
+    // The first snapshot whose queue has the length the command left, or the last one read when it never does.
+    private fun settledSnapshot(outcome: CommandOutcome): StateSnapshot {
+        val expected = (outcome as? CommandOutcome.Acted)?.queueLength
+        val deadline = SystemClock.elapsedRealtime() + OUTCOME_SETTLE_MILLIS
+        while (true) {
+            val snapshot = snapshot()
+            val length = snapshot.nowPlaying?.queue?.length ?: 0
+            if (expected == null || length == expected || SystemClock.elapsedRealtime() >= deadline) return snapshot
+            Thread.sleep(OUTCOME_POLL_MILLIS)
         }
     }
 
@@ -126,5 +154,11 @@ internal class StateReporter(
 
         /** How long after a command Android needs to publish its effect on the media session. */
         const val SETTLE_MILLIS = 1200L
+
+        /** How long an outcome report waits for the media session to show the queue the command left. */
+        const val OUTCOME_SETTLE_MILLIS = 3000L
+        const val OUTCOME_POLL_MILLIS = 100L
+        const val OUTCOME_ATTEMPTS = 3
+        const val OUTCOME_RETRY_MILLIS = 1000L
     }
 }

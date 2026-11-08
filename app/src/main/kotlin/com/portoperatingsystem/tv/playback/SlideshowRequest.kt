@@ -23,10 +23,18 @@ internal class SlideshowRequest(intent: Intent) {
     val position: Int? = intent.getIntExtra(EXTRA_POSITION, 0).takeIf { it > 0 }
     val positions: List<Int> = intent.getIntArrayExtra(EXTRA_POSITIONS)?.toList().orEmpty()
 
+    /**
+     * The id the command is answered under: the set of a show or add (every part of it carries the message id), the
+     * message id of a removal; null when the sender named none.
+     */
+    val commandId: String? = (if (kind == KIND_REMOVE) intent.getStringExtra(EXTRA_COMMAND_ID) else part.set)
+        ?.takeIf { it.isNotBlank() }
+
     companion object {
         const val KIND_SHOW = "show"
         const val KIND_ADD = "add"
         const val KIND_REMOVE = "remove"
+        const val EXTRA_COMMAND_ID = "commandId"
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_SET = "set"
         private const val EXTRA_INDEX = "index"

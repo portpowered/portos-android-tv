@@ -62,53 +62,58 @@ internal data class StateSnapshot(
     val applications: List<String>? = null
 ) {
     /** The signed claims for the installation webhook (protocol in the README). */
-    fun claims(nowSeconds: Long, jti: String = UUID.randomUUID().toString(), requestId: String? = null): JsonObject =
-        buildJsonObject {
-            put("iat", nowSeconds)
-            put("sampledAtMs", sampledAtMs)
-            put("jti", jti)
-            requestId?.let { put("requestId", it) }
-            put(
-                "reports",
-                buildJsonObject {
-                    playback?.let { put("playbackState", it.name) }
-                    nowPlaying?.let { media ->
-                        put(
-                            "nowPlaying",
-                            buildJsonObject {
-                                put("active", playback == Playback.PLAYING || playback == Playback.PAUSED)
-                                put("app", media.appPackage)
-                                media.provider?.let { put("provider", it) }
-                                media.mediaId?.let { put("mediaId", it) }
-                                media.title?.let { put("name", it) }
-                                media.artist?.let { put("artist", it) }
-                                media.positionMs?.let { put("positionMs", it) }
-                                media.queue?.let {
-                                    put("queuePosition", it.position)
-                                    put("queueLength", it.length)
-                                }
+    fun claims(
+        nowSeconds: Long,
+        jti: String = UUID.randomUUID().toString(),
+        requestId: String? = null,
+        outcome: CommandOutcome? = null
+    ): JsonObject = buildJsonObject {
+        put("iat", nowSeconds)
+        put("sampledAtMs", sampledAtMs)
+        put("jti", jti)
+        requestId?.let { put("requestId", it) }
+        put(
+            "reports",
+            buildJsonObject {
+                playback?.let { put("playbackState", it.name) }
+                nowPlaying?.let { media ->
+                    put(
+                        "nowPlaying",
+                        buildJsonObject {
+                            put("active", playback == Playback.PLAYING || playback == Playback.PAUSED)
+                            put("app", media.appPackage)
+                            media.provider?.let { put("provider", it) }
+                            media.mediaId?.let { put("mediaId", it) }
+                            media.title?.let { put("name", it) }
+                            media.artist?.let { put("artist", it) }
+                            media.positionMs?.let { put("positionMs", it) }
+                            media.queue?.let {
+                                put("queuePosition", it.position)
+                                put("queueLength", it.length)
                             }
-                        )
-                    }
-                    applications?.let { put("applications", JsonArray(it.map(::JsonPrimitive))) }
-                    put("volume", volumePercent)
-                    put("muted", muted)
-                    put(
-                        "input",
-                        buildJsonObject {
-                            put("touch", input.touch)
-                            put("directionalKeys", input.directionalKeys)
-                        }
-                    )
-                    put(
-                        "connectivity",
-                        buildJsonObject {
-                            put("backgroundLaunchAllowed", backgroundLaunchAllowed)
-                            put("mediaAccessAllowed", mediaAccessAllowed)
-                            put("accessibilityEnabled", accessibilityEnabled)
                         }
                     )
                 }
-            )
-        }
+                applications?.let { put("applications", JsonArray(it.map(::JsonPrimitive))) }
+                put("volume", volumePercent)
+                put("muted", muted)
+                put(
+                    "input",
+                    buildJsonObject {
+                        put("touch", input.touch)
+                        put("directionalKeys", input.directionalKeys)
+                    }
+                )
+                put(
+                    "connectivity",
+                    buildJsonObject {
+                        put("backgroundLaunchAllowed", backgroundLaunchAllowed)
+                        put("mediaAccessAllowed", mediaAccessAllowed)
+                        put("accessibilityEnabled", accessibilityEnabled)
+                    }
+                )
+            }
+        )
+        outcome?.let { put("outcome", it.claim()) }
+    }
 }
