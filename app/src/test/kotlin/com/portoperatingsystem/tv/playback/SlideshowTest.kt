@@ -3,7 +3,6 @@ package com.portoperatingsystem.tv.playback
 import android.app.Application
 import android.os.Looper
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
 import com.portoperatingsystem.tv.protocol.command.Command
 import com.portoperatingsystem.tv.protocol.command.ImageFile
@@ -14,8 +13,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -110,23 +109,30 @@ class SlideshowTest {
     }
 
     @Test
-    fun aSlideshowWithoutLoopPausesAtTheEndOfItsLastImage() {
-        val player = awaitCount(send(show("a", "b")), 2) as ExoPlayer
+    fun aSlideshowWithoutLoopPausesJustBeforeItsLastImageEnds() {
+        val service = send(show("a", "b"))
+        awaitCount(service, 2)
 
-        assertFalse(player.pauseAtEndOfMediaItems)
-        player.seekTo(1, 0)
-        shadowOf(Looper.getMainLooper()).idle()
-        assertTrue(player.pauseAtEndOfMediaItems)
+        assertEquals(1 to SECONDS * 1000L - HOLD_MARGIN_MILLIS, service.slideshow.holdsAt)
+    }
+
+    @Test
+    fun theHoldMovesToTheImagesAddedAfterTheLast() {
+        val service = send(show("a", "b"))
+        awaitCount(service, 2)
+
+        send(Command.AddImages(Part("t", 0, 1), images("x"), position = null))
+        awaitCount(service, 3)
+        assertEquals(2 to SECONDS * 1000L - HOLD_MARGIN_MILLIS, service.slideshow.holdsAt)
     }
 
     @Test
     fun aLoopingSlideshowStartsOver() {
-        val player = awaitCount(send(show("a", "b", loop = true)), 2) as ExoPlayer
+        val service = send(show("a", "b", loop = true))
+        val player = awaitCount(service, 2)
 
         assertEquals(Player.REPEAT_MODE_ALL, player.repeatMode)
-        player.seekTo(1, 0)
-        shadowOf(Looper.getMainLooper()).idle()
-        assertFalse(player.pauseAtEndOfMediaItems)
+        assertNull(service.slideshow.holdsAt)
     }
 
     @Test
@@ -212,5 +218,6 @@ class SlideshowTest {
         const val WAIT_MILLIS = 20L
         const val SETTLE_MILLIS = 500L
         const val HTTP_GONE = 410
+        const val HOLD_MARGIN_MILLIS = 250L
     }
 }
