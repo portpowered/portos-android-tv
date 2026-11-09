@@ -91,6 +91,39 @@ class SurfaceControllerTest {
     }
 
     @Test
+    fun showSurfaceAppliesEveryMessageInOrder() {
+        controller.receive(
+            message(
+                "show-surface",
+                "show-1",
+                1,
+                """{"surfaceId":"s","a2ui":[
+                {"version":"1.0","createSurface":{"surfaceId":"s"}},
+                {"version":"1.0","updateComponents":{"surfaceId":"s","components":[
+                  {"id":"root","component":"Text","text":{"@path":"/greeting"}}]}},
+                {"version":"1.0","updateDataModel":{"surfaceId":"s","path":"/greeting","value":"hi"}}]}"""
+            )
+        )
+
+        val model = controller.state.value?.model
+        assertEquals(1, effects.shown)
+        assertNotNull(model?.components?.get("root"))
+        assertEquals("hi", model?.dataModel?.jsonObject?.get("greeting")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun aClosedSurfaceCanBeShownAgainUnderTheSameMessageId() {
+        controller.receive(show(id = "same"))
+        controller.receive(message("close-surface", "c", 2, """{"surfaceId":"s"}"""))
+        assertNull(controller.state.value)
+
+        controller.receive(show(id = "same", text = "again"))
+
+        assertEquals("again", text())
+        assertEquals(2, effects.shown)
+    }
+
+    @Test
     fun noSurfaceMeansNoPosition() {
         assertNull(controller.position())
     }

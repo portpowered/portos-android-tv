@@ -126,18 +126,25 @@ internal class SurfaceController(
 
     private fun show(message: GatewayMessage) {
         if (message.id.isNotEmpty() && message.id == shownMessageId) return
-        val create = try {
-            A2uiParser.parseAll(message.payload["a2ui"]).filterIsInstance<A2uiMessage.CreateSurface>().firstOrNull()
+        val messages = try {
+            A2uiParser.parseAll(message.payload["a2ui"])
         } catch (error: A2uiException) {
             Log.w(TAG, "show-surface refused: ${error.message}")
-            null
-        } ?: return
+            return
+        }
+        val first = messages.indexOfFirst { it is A2uiMessage.CreateSurface }
+        if (first < 0) return
+        val create = messages[first] as A2uiMessage.CreateSurface
+        // The messages after the createSurface (updateComponents, updateDataModel) build on it, in order.
+        val model = messages.drop(first + 1).fold(SurfaceModel.create(create)) { model, next ->
+            if (next.surfaceId == model.surfaceId) model.apply(next) else model
+        }
         shownMessageId = message.id
         held.clear()
         holdTimer?.cancel()
         // A replacement keeps the screen's visibility: an activity that is already showing is not started again.
         val visible = mutableState.value?.visible ?: false
-        mutableState.value = SurfaceState(SurfaceModel.create(create), message.id, message.sequence ?: 1L, visible)
+        mutableState.value = SurfaceState(model, message.id, message.sequence ?: 1L, visible)
         effects.showForeground()
     }
 
@@ -187,6 +194,7 @@ internal class SurfaceController(
     private fun close() {
         held.clear()
         holdTimer?.cancel()
+        shownMessageId = null
         mutableState.value = null
         effects.closeForeground()
     }

@@ -381,6 +381,9 @@ JVM. `:app` is the thin layer that touches Android APIs and is tested with Robol
 - Screenshot tests (Roborazzi, under Robolectric native graphics) render each component and a full surface against
   goldens in `app/src/test/screenshots/`. `make test` verifies them; `make record-screenshots` re-records after an
   intended change.
+- The `reports.generativeUi` registration the app sends is pinned by `app/src/test/resources/generative-ui-registration.json`
+  (`CapabilityTest` fails on any difference). After an intended change to a component's schema, `make record-registration`
+  rewrites the golden; review the diff, since the backend plugin validates every surface against it.
 - `make test-device`: instrumented tests on the connected emulator or TV (`ADB_SERIAL`). None exist yet;
   on-device behavior was verified by hand (see the design doc's spike findings).
 - End-to-end against a real backend: the backend's functional tests cover the plugin with a fake FCM; the

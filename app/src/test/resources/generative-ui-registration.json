@@ -1,0 +1,465 @@
+{
+  "catalogVersion": "1.0",
+  "catalogIds": [
+    "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+    "https://portoperatingsystem.com/a2ui/catalogs/tv/v1/catalog.json"
+  ],
+  "maxPayloadBytes": 524288,
+  "display": {
+    "widthPx": 1920,
+    "heightPx": 1080,
+    "widthDp": 960,
+    "heightDp": 540,
+    "density": 2.0,
+    "safeAreaInsetDp": 24,
+    "viewingDistance": "TEN_FOOT"
+  },
+  "components": [
+    {
+      "name": "Text",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Text"
+          },
+          "text": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "@path"
+                ]
+              }
+            ]
+          },
+          "variant": {
+            "enum": [
+              "body",
+              "caption"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "Text in the Port OS type scale. Markdown headings: # and ## use the headline sizes, ### to ##### the title sizes; variant body is the body size, caption the micro size. Default text color."
+    },
+    {
+      "name": "Image",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Image"
+          },
+          "url": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "@path"
+                ]
+              }
+            ]
+          },
+          "description": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "@path"
+                ]
+              }
+            ]
+          },
+          "fit": {
+            "enum": [
+              "contain",
+              "cover",
+              "fill",
+              "none",
+              "scaleDown"
+            ]
+          },
+          "variant": {
+            "enum": [
+              "icon",
+              "avatar",
+              "smallFeature",
+              "mediumFeature",
+              "largeFeature",
+              "header"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "Loaded from the URL by the TV; a fixed size per variant, in the card radius (avatars round). Shows the surface color while loading and a muted placeholder if the load fails."
+    },
+    {
+      "name": "Icon",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Icon"
+          },
+          "name": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A vector icon at the icon size in the default text color. Names are the A2UI basic-catalog names."
+    },
+    {
+      "name": "Row",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Row"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "justify": {
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "spaceBetween",
+              "spaceAround",
+              "spaceEvenly",
+              "stretch"
+            ]
+          },
+          "align": {
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "children"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A horizontal group. A child's weight shares the free space, so two weighted children make left and right columns. Gaps come from the spacing scale."
+    },
+    {
+      "name": "Column",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Column"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "justify": {
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "spaceBetween",
+              "spaceAround",
+              "spaceEvenly",
+              "stretch"
+            ]
+          },
+          "align": {
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "children"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A vertical group. A child's weight shares the free height. Gaps come from the spacing scale."
+    },
+    {
+      "name": "List",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "List"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "direction": {
+            "enum": [
+              "vertical",
+              "horizontal"
+            ]
+          },
+          "align": {
+            "enum": [
+              "start",
+              "center",
+              "end",
+              "stretch"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "children"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A row or column of children that does not scroll: nothing on the TV can be focused, so overflow is clipped. Size lists to fit the screen."
+    },
+    {
+      "name": "Card",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Card"
+          },
+          "child": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "child"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A rounded surface with the card padding and a raised shadow around one child."
+    },
+    {
+      "name": "Divider",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Divider"
+          },
+          "axis": {
+            "enum": [
+              "horizontal",
+              "vertical"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "A hairline in the border color."
+    },
+    {
+      "name": "Timer",
+      "properties": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "component": {
+            "const": "Timer"
+          },
+          "label": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "@path"
+                ]
+              }
+            ]
+          },
+          "mode": {
+            "enum": [
+              "COUNTDOWN",
+              "COUNT_UP"
+            ]
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "doneText": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "@path"
+                ]
+              }
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "Share of the free space in a Row or Column."
+          },
+          "accessibility": {
+            "type": "object",
+            "description": "Accepted and ignored: nothing on the TV is focused."
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "mode"
+        ],
+        "additionalProperties": false
+      },
+      "rendering": "Port OS component (catalog https://portoperatingsystem.com/a2ui/catalogs/tv/v1/catalog.json). Ticks every second on the TV, so send it once. COUNTDOWN counts down to endsAt and then shows doneText in the brand color; COUNT_UP counts up from startedAt. Headline size; the label is above it."
+    }
+  ]
+}

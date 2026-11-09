@@ -100,6 +100,15 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = false
+            all { test ->
+                // `-PrecordRegistration=true` rewrites the generative-ui registration golden (see the README).
+                val record = providers.gradleProperty("recordRegistration").getOrElse("false")
+                test.systemProperty("recordRegistration", record)
+                test.systemProperty(
+                    "registrationGolden",
+                    file("src/test/resources/generative-ui-registration.json").path
+                )
+            }
         }
     }
 

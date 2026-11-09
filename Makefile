@@ -12,6 +12,7 @@
 #   make release          signed release APK (needs the signing key, see deploy)
 #   make deploy           release + upload to the downloads bucket
 #   make record-screenshots  re-record the renderer's screenshot goldens (app/src/test/screenshots)
+#   make record-registration  re-record the generativeUi registration golden (app/src/test/resources)
 #   make clean
 #
 # Variables: ENV (pilot|local, default pilot), ADB_SERIAL (default: the only connected device).
@@ -32,7 +33,7 @@ ADB := adb $(if $(ADB_SERIAL),-s $(ADB_SERIAL),)
 VARIANT := $(if $(filter local,$(ENV)),Local,$(if $(filter pilot,$(ENV)),Pilot,$(error ENV must be pilot or local)))
 
 .DEFAULT_GOAL := build
-.PHONY: build lint format test test-device install setup-tv release deploy clean sync-tokens record-screenshots
+.PHONY: build lint format test test-device install setup-tv release deploy clean sync-tokens record-screenshots record-registration
 
 build:
 	$(GRADLE) :app:assemble$(VARIANT)Debug
@@ -68,6 +69,9 @@ sync-tokens:
 
 record-screenshots:
 	$(GRADLE) :app:test$(VARIANT)DebugUnitTest -Proborazzi.test.record=true --tests '*Screenshot*'
+
+record-registration:
+	$(GRADLE) :app:test$(VARIANT)DebugUnitTest -PrecordRegistration=true --tests '*CapabilityTest*'
 
 clean:
 	$(GRADLE) clean

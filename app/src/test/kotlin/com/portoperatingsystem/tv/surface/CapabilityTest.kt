@@ -1,13 +1,17 @@
 package com.portoperatingsystem.tv.surface
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+@OptIn(ExperimentalSerializationApi::class)
 class CapabilityTest {
     @Test
     fun theDisplayIsAlways960By540DpWhateverThePanel() {
@@ -69,11 +73,47 @@ class CapabilityTest {
     }
 
     @Test
+    fun theRegistrationMatchesTheGoldenFile() {
+        val registration = Capability.registration(SurfaceDisplay.info(1920, 1080))
+        val golden = File(requireNotNull(System.getProperty("registrationGolden")))
+        val json = Json {
+            prettyPrint = true
+            prettyPrintIndent = "  "
+        }
+        val pretty = json.encodeToString(JsonObject.serializer(), registration)
+        if (System.getProperty("recordRegistration") == "true") golden.writeText(pretty + "\n", Charsets.UTF_8)
+
+        assertEquals(pretty, golden.readText(Charsets.UTF_8).trimEnd(), "run make record-registration if intended")
+    }
+
+    @Test
+    fun eachComponentsPropertiesIsTheSchemaOfTheWholeComponentObject() {
+        val components = Capability.registration(SurfaceDisplay.info(1920, 1080))
+            .getValue("components").jsonArray.map { it.jsonObject }
+        for (component in components) {
+            val name = component.getValue("name").jsonPrimitive.content
+            val schema = component.getValue("properties").jsonObject
+            val properties = schema.getValue("properties").jsonObject
+            assertEquals("object", schema.getValue("type").jsonPrimitive.content)
+            assertEquals("false", schema.getValue("additionalProperties").jsonPrimitive.content)
+            assertEquals(name, properties.getValue("component").jsonObject.getValue("const").jsonPrimitive.content)
+            val required = schema.getValue("required").jsonArray.map { it.jsonPrimitive.content }
+            assertTrue(required.containsAll(listOf("id", "component")), name)
+            assertTrue(properties.keys.containsAll(required), name)
+            assertTrue("id" in properties && "accessibility" in properties && "weight" in properties, name)
+            properties["children"]?.let {
+                assertEquals("array", it.jsonObject.getValue("type").jsonPrimitive.content, name)
+            }
+        }
+    }
+
+    @Test
     fun everyComponentAcceptsAWeight() {
         val components = Capability.registration(SurfaceDisplay.info(1920, 1080))
             .getValue("components").jsonArray.map { it.jsonObject }
         for (component in components) {
-            assertTrue("weight" in component.getValue("properties").jsonObject, component.toString())
+            val properties = component.getValue("properties").jsonObject.getValue("properties").jsonObject
+            assertTrue("weight" in properties, component.toString())
         }
     }
 }
