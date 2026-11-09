@@ -366,7 +366,7 @@ devices/android-tv/
         │                    file downloads
         ├── surface/         generative UI: A2UI parser (a2ui/), gateway WebSocket (gateway/), Compose renderer (render/),
         │                    surface controller and activity, vendored PortosTokens.kt
-        ├── state/           media-session listener, state snapshot and signed reports, workers
+        ├── state/           media-session listener, state snapshot and reports, workers
         └── ui/              pairing and status screens, text notification overlay, the full-screen player (leanback)
 ```
 
@@ -376,7 +376,7 @@ JVM. `:app` is the thin layer that touches Android APIs and is tested with Robol
 ## Tests
 
 - `make test`: JVM unit tests for `:protocol` (media URIs, deep links, command decoding) and for `:app`
-  (JOSE/DPoP signing, the HTTP client and the pairing flow against `MockWebServer` under Robolectric, command
+  (DPoP proofs, the HTTP client and the pairing flow against `MockWebServer` under Robolectric, command
   execution against a fake `DevicePort`, report claims).
 - Screenshot tests (Roborazzi, under Robolectric native graphics) render each component and a full surface against
   goldens in `app/src/test/screenshots/`. `make test` verifies them; `make record-screenshots` re-records after an

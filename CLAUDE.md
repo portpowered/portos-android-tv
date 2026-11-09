@@ -10,10 +10,8 @@ keep accepting older app versions, because installed TVs update late.
   a lower minSdk; keep them in sync with the framework.
 - `DevicePort` and `ScreenPort` are separate interfaces to stay under detekt `TooManyFunctions`; `CommandExecutor`
   takes both.
-- A screenshot report must fit the Port OS host's 8 MiB installation webhook body (the rest of the API keeps a
-  1 MiB limit). The JPEG is base64 inside claims that are
-  base64url-encoded again by the signed report, so `ScreenshotEncoder` caps it at 4,194,304 bytes (about 7.1 MiB on the
-  wire) and starts its ladder at 3840 px for a 4K frame. Keep `MAX_BYTES` in step with the plugin's `maxSnapshotBytes`
+- A screenshot report must fit the Port OS host's 8 MiB `POST /messages` body. The JPEG is base64 inside the JSON
+  message, so `ScreenshotEncoder` caps it at 4,194,304 bytes (about 5.6 MiB on the wire) and starts its ladder at 3840 px for a 4K frame. Keep `MAX_BYTES` in step with the plugin's `maxSnapshotBytes`
   and with that host limit.
 - A new command type needs the protocol decoder and the app executor here, and the plugin's command and vocabulary on
   the server; release the app first, since the plugin may only send what installed apps understand.

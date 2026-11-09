@@ -18,7 +18,7 @@ internal interface DeviceSigner {
     fun sign(data: ByteArray): ByteArray
 }
 
-/** Compact JWS and DPoP proofs, ES256 only. */
+/** DPoP proofs (a compact ES256 JWS), signed with the TV's Keystore key. */
 internal object Jose {
     private const val COORDINATE_BYTES = 32
     private val encoder = Base64.getUrlEncoder().withoutPadding()
@@ -34,7 +34,7 @@ internal object Jose {
     }
 
     /** A compact JWS over [claims], with [header] fields added to `alg: ES256`. */
-    fun sign(signer: DeviceSigner, claims: JsonObject, header: JsonObject = JsonObject(emptyMap())): String {
+    private fun sign(signer: DeviceSigner, claims: JsonObject, header: JsonObject = JsonObject(emptyMap())): String {
         val fullHeader = JsonObject(header + ("alg" to JsonPrimitive("ES256")))
         val input = base64Url(fullHeader.toString().toByteArray()) + "." + base64Url(claims.toString().toByteArray())
         return input + "." + base64Url(signer.sign(input.toByteArray()))
