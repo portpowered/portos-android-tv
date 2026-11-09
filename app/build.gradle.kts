@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.roborazzi)
 }
 
 // Each environment is a product flavor whose values come from environments/<env>.properties.
@@ -22,8 +24,8 @@ android {
         applicationId = "com.portoperatingsystem.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.8.1"
+        versionCode = 20
+        versionName = "0.9.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -40,7 +42,8 @@ android {
                     "FIREBASE_PROJECT_ID",
                     "FIREBASE_APPLICATION_ID",
                     "FIREBASE_API_KEY",
-                    "FIREBASE_SENDER_ID"
+                    "FIREBASE_SENDER_ID",
+                    "GATEWAY_URL"
                 ).forEach { key ->
                     val value =
                         checkNotNull(values.getProperty(key)) { "environments/$name.properties is missing $key" }
@@ -97,6 +100,15 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = false
+            all { test ->
+                // `-PrecordRegistration=true` rewrites the generative-ui registration golden (see the README).
+                val record = providers.gradleProperty("recordRegistration").getOrElse("false")
+                test.systemProperty("recordRegistration", record)
+                test.systemProperty(
+                    "registrationGolden",
+                    file("src/test/resources/generative-ui-registration.json").path
+                )
+            }
         }
     }
 
@@ -116,6 +128,13 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
     implementation(libs.media3.ui)
+    // Compose is for the generative-UI surface activity only (the rest of the app stays on views).
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.icons)
+    implementation(libs.tv.material)
+    implementation(libs.activity.compose)
     implementation(libs.zxing.core)
     implementation(libs.dadb)
 
@@ -125,6 +144,12 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    debugImplementation(platform(libs.compose.bom))
+    debugImplementation(libs.compose.ui.test.manifest)
 
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)

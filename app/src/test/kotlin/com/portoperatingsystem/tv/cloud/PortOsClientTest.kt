@@ -76,24 +76,29 @@ class PortOsClientTest {
         assertFalse(body.containsKey("authLinkId"))
         val data = assertNotNull(body["pluginAuthenticationData"]).jsonObject
         assertEquals("fcm", data["fcmToken"]?.jsonPrimitive?.content)
-        assertEquals(signer.publicJwk, data["publicKeyJwk"]?.jsonObject)
+        // The plugin refuses anything but exactly these four fields (the report is authenticated by the token).
+        assertEquals(setOf("fcmToken", "deviceId", "deviceName", "model"), data.keys)
     }
 
     @Test
-    fun reportPostsSignedJwsToInstallationWebhook() {
-        server.enqueue(MockResponse().setResponseCode(204))
-        client.report("link-1", buildJsonObject { put("jti", "j") })
+    fun postMessageSendsTheMessageWithBearerAndIdempotencyKey() {
+        server.enqueue(json(202, """{"receiptId":"r-1"}"""))
+        val message = buildJsonObject { put("header", buildJsonObject { put("name", "report-state") }) }
+        client.postMessage("token", message, "key-1")
         val request = server.takeRequest()
-        assertEquals("/webhooks/android-tv/installations/link-1", request.path)
-        assertEquals("application/jose", request.getHeader("Content-Type")?.substringBefore(';'))
-        assertTrue(signer.verify(request.body.readUtf8()))
+        assertEquals("/messages", request.path)
+        assertEquals("POST", request.method)
+        assertEquals("Bearer token", request.getHeader("Authorization"))
+        assertEquals("key-1", request.getHeader("Idempotency-Key"))
+        assertEquals("application/json", request.getHeader("Content-Type")?.substringBefore(';'))
+        assertEquals(message, Json.parseToJsonElement(request.body.readUtf8()))
     }
 
     @Test
     fun serverErrorsAreRetryableClientErrorsAreNot() {
         server.enqueue(MockResponse().setResponseCode(503))
         server.enqueue(MockResponse().setResponseCode(404))
-        assertTrue(assertFailsWith<PortOsException> { client.report("l", buildJsonObject {}) }.retryable)
-        assertFalse(assertFailsWith<PortOsException> { client.report("l", buildJsonObject {}) }.retryable)
+        assertTrue(assertFailsWith<PortOsException> { client.postMessage("t", buildJsonObject {}, "k") }.retryable)
+        assertFalse(assertFailsWith<PortOsException> { client.postMessage("t", buildJsonObject {}, "k") }.retryable)
     }
 }

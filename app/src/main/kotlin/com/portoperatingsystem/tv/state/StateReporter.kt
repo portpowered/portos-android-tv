@@ -8,7 +8,7 @@ import android.media.session.MediaSessionManager
 import android.os.SystemClock
 import android.util.Log
 import com.portoperatingsystem.tv.auth.Session
-import com.portoperatingsystem.tv.cloud.PortOsClient
+import com.portoperatingsystem.tv.cloud.MessageSender
 import com.portoperatingsystem.tv.cloud.PortOsException
 import com.portoperatingsystem.tv.control.AccessibilitySetting
 import com.portoperatingsystem.tv.control.AndroidDevice
@@ -16,19 +16,25 @@ import com.portoperatingsystem.tv.control.InputCapabilities
 import com.portoperatingsystem.tv.control.isMuted
 import com.portoperatingsystem.tv.protocol.media.MediaIdentity
 import kotlin.math.roundToInt
+import kotlinx.serialization.json.JsonObject
 
 /** Reads the TV's current state and posts it to Port OS. Safe to call from any background thread. */
 @Suppress("LongParameterList") // Each parameter is a distinct source of the report, wired once in AppGraph.
 internal class StateReporter(
     private val context: Context,
     private val device: AndroidDevice,
-    private val client: PortOsClient,
+    private val sender: MessageSender,
     private val session: Session,
+    private val generativeUi: () -> JsonObject,
     private val launchableApps: () -> List<String>,
     private val inputCapabilities: () -> InputCapabilities,
     private val onReported: (playing: Boolean) -> Unit = {}
 ) {
     @Volatile private var lastCommandAt = 0L
+
+    // The capability registration rides on the first report after the app starts (every start and upgrade), and
+    // again once a day, because the backend expires a registration that is not renewed.
+    private val registration = RegistrationSchedule()
 
     /** Records that a command just ran, so a state read right after it waits for the TV to settle. */
     fun commandRan() {
@@ -61,13 +67,13 @@ internal class StateReporter(
 
     /** Reports now. Returns false when the report could not be delivered and is worth retrying. */
     fun report(requestId: String? = null, outcome: CommandOutcome? = null): Boolean {
-        val linkId = session.authLinkId ?: return true
+        if (session.authLinkId == null) return true
         return try {
-            val snapshot = if (outcome == null) snapshot() else settledSnapshot(outcome)
-            client.report(
-                linkId,
-                snapshot.claims(System.currentTimeMillis() / MILLIS, requestId = requestId, outcome = outcome)
-            )
+            val registering = registration.due()
+            val read = if (outcome == null) snapshot() else settledSnapshot(outcome)
+            val snapshot = if (registering) read.copy(generativeUi = generativeUi()) else read
+            sender.reportState(snapshot.payload(requestId = requestId, outcome = outcome))
+            if (registering) registration.sent()
             onReported(snapshot.playback == Playback.PLAYING)
             true
         } catch (error: PortOsException) {
@@ -149,7 +155,6 @@ internal class StateReporter(
 
     private companion object {
         const val TAG = "PortOsState"
-        const val MILLIS = 1000L
         const val PERCENT = 100
 
         /** How long after a command Android needs to publish its effect on the media session. */

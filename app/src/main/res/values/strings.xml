@@ -13,4 +13,7 @@
     <string name="accessibility_description">Lets Port OS press remote buttons and capture the screen when you ask it to.</string>
     <string name="error_generic">Something went wrong: %1$s</string>
     <string name="retry">Try again</string>
+    <string name="pair_again_title">Pair this TV again</string>
+    <string name="pair_again_detail">Port OS no longer accepts this TV’s sign-in, so it cannot receive screens or report its state.</string>
+    <string name="pair_again">Pair again</string>
 </resources>

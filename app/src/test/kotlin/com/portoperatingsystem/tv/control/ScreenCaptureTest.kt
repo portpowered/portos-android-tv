@@ -10,8 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonPrimitive
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -38,8 +36,7 @@ class ScreenCaptureTest {
         screen = { screen },
         post = post,
         background = Inline,
-        encode = { encoded },
-        clock = { 1_000L }
+        encode = { encoded }
     )
 
     private fun bitmap() = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888)
@@ -50,8 +47,6 @@ class ScreenCaptureTest {
 
         assertEquals(1, posted.size)
         val claims = posted[0]
-        assertEquals(JsonPrimitive(1_000L), claims["iat"])
-        assertTrue(claims.getValue("jti").jsonPrimitive.content.isNotEmpty())
         assertEquals(
             Json.parseToJsonElement("""{"requestId":"req-1","width":8,"height":4,"data":"AQID"}"""),
             claims["snapshot"]
@@ -87,12 +82,12 @@ class ScreenCaptureTest {
     }
 
     @Test
-    fun theClaimsCarryTheStandardBase64OfTheJpeg() {
-        val claims = snapshotClaims("r", EncodedImage(ByteArray(4) { 0xFB.toByte() }, 2, 2), nowSeconds = 7, jti = "j")
+    fun thePayloadCarriesTheStandardBase64OfTheJpeg() {
+        val claims = snapshotPayload("r", EncodedImage(ByteArray(4) { 0xFB.toByte() }, 2, 2))
 
         assertEquals(
             Json.parseToJsonElement(
-                """{"iat":7,"jti":"j","snapshot":{"requestId":"r","width":2,"height":2,"data":"+/v7+w=="}}"""
+                """{"snapshot":{"requestId":"r","width":2,"height":2,"data":"+/v7+w=="}}"""
             ),
             claims
         )

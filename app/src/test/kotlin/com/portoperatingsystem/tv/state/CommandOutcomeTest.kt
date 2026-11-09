@@ -26,8 +26,7 @@ class CommandOutcomeTest {
     private val replaced =
         CommandOutcome.Failed(FailureCode.REPLACED, "a newer command replaced this one before it took effect")
 
-    private fun claims(outcome: CommandOutcome): JsonObject =
-        snapshot.claims(nowSeconds = 100, jti = "j", requestId = "m1", outcome = outcome)
+    private fun claims(outcome: CommandOutcome): JsonObject = snapshot.payload(requestId = "m1", outcome = outcome)
 
     @Test
     fun anActedReportCarriesTheRequestIdTheStateAndTheOutcome() {
@@ -36,7 +35,7 @@ class CommandOutcomeTest {
 
         assertEquals("m1", claims.getValue("requestId").jsonPrimitive.content)
         assertEquals(Json.parseToJsonElement("""{"secondsPerImage":8,"loop":false}"""), claims.getValue("outcome"))
-        assertEquals(setOf("iat", "sampledAtMs", "jti", "requestId", "reports", "outcome"), claims.keys)
+        assertEquals(setOf("sampledAtMs", "requestId", "reports", "outcome"), claims.keys)
         val playing = claims.getValue("reports").jsonObject.getValue("nowPlaying").jsonObject
         assertEquals(3, playing.getValue("queueLength").jsonPrimitive.content.toInt())
     }

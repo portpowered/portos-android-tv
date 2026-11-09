@@ -3,9 +3,11 @@ package com.portoperatingsystem.tv.auth
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.portoperatingsystem.tv.cloud.PortOsClient
+import com.portoperatingsystem.tv.cloud.PortOsException
 import com.portoperatingsystem.tv.cloud.Registration
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -50,6 +52,8 @@ class SessionTest {
         respond(400, """{"error":"authorization_pending"}""")
         respond(200, """{"access_token":"a1","refresh_token":"r1","expires_in":3600}""")
         respond(200, """{"id":"x","etag":"e","status":"ACTIVE","authLinkId":"link-1"}""")
+        // The token issued at pairing predates the auth link; one refresh gets the token with the link claim.
+        respond(200, """{"access_token":"a2","refresh_token":"r2","expires_in":3600}""")
         val states = mutableListOf<PairingState>()
 
         session.pair { states += it }
@@ -59,7 +63,7 @@ class SessionTest {
         assertEquals(PairingState.Paired, states.last())
         assertTrue(session.isPaired)
         assertEquals("link-1", session.authLinkId)
-        assertEquals(Credentials("a1", "r1", now + 3600, "link-1"), store.load())
+        assertEquals(Credentials("a2", "r2", now + 3600, "link-1"), store.load())
     }
 
     @Test
@@ -184,5 +188,52 @@ class SessionTest {
         session.unpair()
         assertFalse(session.isPaired)
         assertEquals(id, store.deviceId)
+    }
+
+    @Test
+    fun accessTokenIsReusedUntilNearExpiry() {
+        store.save(Credentials("a1", "r1", accessTokenExpiresAtSeconds = now + 3600, authLinkId = "link-1"))
+
+        assertEquals("a1", session.accessToken())
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun accessTokenRefreshesWhenAboutToExpireOrWhenForced() {
+        store.save(Credentials("a1", "r1", accessTokenExpiresAtSeconds = now + 60, authLinkId = "link-1"))
+        respond(200, """{"access_token":"a2","expires_in":3600}""")
+        respond(200, """{"access_token":"a3","refresh_token":"r3","expires_in":3600}""")
+
+        assertEquals("a2", session.accessToken())
+        assertEquals("a3", session.accessToken(forceRefresh = true))
+
+        assertEquals(Credentials("a3", "r3", now + 3600, "link-1"), store.load())
+        assertFalse(session.needsPairing.value)
+    }
+
+    @Test
+    fun aRefusedRefreshAsksToPairAgain() {
+        store.save(Credentials("a1", "r1", accessTokenExpiresAtSeconds = now + 60, authLinkId = "link-1"))
+        respond(400, """{"error":"invalid_grant"}""")
+
+        assertFailsWith<PairAgainException> { session.accessToken() }
+
+        assertTrue(session.needsPairing.value)
+    }
+
+    @Test
+    fun aRefreshThatFailsOnTheNetworkIsRetryableNotPairAgain() {
+        store.save(Credentials("a1", "r1", accessTokenExpiresAtSeconds = now + 60, authLinkId = "link-1"))
+        respond(503, "")
+
+        val error = assertFailsWith<PortOsException> { session.accessToken() }
+
+        assertTrue(error.retryable)
+        assertFalse(session.needsPairing.value)
+    }
+
+    @Test
+    fun anUnpairedTvNeedsPairingNotARefresh() {
+        assertFailsWith<PairAgainException> { session.accessToken() }
     }
 }

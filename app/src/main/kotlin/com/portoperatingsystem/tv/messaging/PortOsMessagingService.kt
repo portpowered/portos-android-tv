@@ -24,6 +24,11 @@ internal class PortOsMessagingService : FirebaseMessagingService() {
     private val graph get() = (application as PortOsApplication).graph
 
     override fun onMessageReceived(message: RemoteMessage) {
+        // The wake for the generative UI connection is not a command: it carries no version or id.
+        if (message.data["type"] == GENERATIVE_UI_CONNECT) {
+            graph.connectGateway()
+            return
+        }
         var stateRead = false
         when (val decoded = CommandDecoder.decode(message.data)) {
             is Decoded.Accepted -> {
@@ -61,5 +66,6 @@ internal class PortOsMessagingService : FirebaseMessagingService() {
 
     private companion object {
         const val TAG = "PortOsCommand"
+        const val GENERATIVE_UI_CONNECT = "generative-ui/connect"
     }
 }

@@ -10,10 +10,8 @@ keep accepting older app versions, because installed TVs update late.
   a lower minSdk; keep them in sync with the framework.
 - `DevicePort` and `ScreenPort` are separate interfaces to stay under detekt `TooManyFunctions`; `CommandExecutor`
   takes both.
-- A screenshot report must fit the Port OS host's 8 MiB installation webhook body (the rest of the API keeps a
-  1 MiB limit). The JPEG is base64 inside claims that are
-  base64url-encoded again by the signed report, so `ScreenshotEncoder` caps it at 4,194,304 bytes (about 7.1 MiB on the
-  wire) and starts its ladder at 3840 px for a 4K frame. Keep `MAX_BYTES` in step with the plugin's `maxSnapshotBytes`
+- A screenshot report must fit the Port OS host's 8 MiB `POST /messages` body. The JPEG is base64 inside the JSON
+  message, so `ScreenshotEncoder` caps it at 4,194,304 bytes (about 5.6 MiB on the wire) and starts its ladder at 3840 px for a 4K frame. Keep `MAX_BYTES` in step with the plugin's `maxSnapshotBytes`
   and with that host limit.
 - A new command type needs the protocol decoder and the app executor here, and the plugin's command and vocabulary on
   the server; release the app first, since the plugin may only send what installed apps understand.
@@ -73,3 +71,16 @@ keep accepting older app versions, because installed TVs update late.
   `StateReporter.reportOutcome` waits for the media session to show the new queue length before reading state.
   Robolectric's ExoPlayer never reaches READY, so tests call `PlaybackService.answerWhenShown` directly. Keep the
   plugin's `playback-result` handling and the failure codes in step with this.
+
+## Generative UI (`surface/`)
+
+- `surface/PortosTokens.kt` is generated in the monorepo; never edit it. `make sync-tokens MONOREPO=<path>` vendors it
+  and records the commit and SHA-256 (`TokensTest` checks both).
+- The renderer (`surface/render/`) must take colors, lengths and type sizes from `PortosTokens`; detekt's
+  `ForbiddenImport` bans `Color`, `dp`, `sp` and `em` there. Heading levels map `#` to `headline`, `##` to
+  `pageTitle`, `###` to `sectionHeading`, deeper to `subsectionHeading`.
+- Screenshot goldens live in `app/src/test/screenshots/`. `make test` verifies; `make record-screenshots` re-records.
+  Do not set `roborazzi.test.verify` in gradle.properties: it overrides record.
+- Replies to `get-surface` go to `POST /messages` with `context.correlationToken` copied; never over the WebSocket.
+- A gap in `context.sequence` is held 5 seconds, then the connector reconnects with `surfaceId`, `showId`,
+  `lastSequence`.
