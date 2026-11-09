@@ -97,40 +97,23 @@ class RenderLogicTest {
     fun aBindingReadsTheDataModelAndALiteralPassesThrough() {
         val bindings = bindings("""[{"id":"root","component":"Text"}]""", """{"name":"Ada","n":3,"gone":null}""")
 
-        assertEquals("Ada", bindings.string(element("""{"@path":"/name"}"""), ""))
-        assertEquals("3", bindings.string(element("""{"@path":"/n"}"""), ""))
-        assertEquals("literal", bindings.string(element("\"literal\""), ""))
-        assertNull(bindings.string(element("""{"@path":"/missing"}"""), ""))
-        assertNull(bindings.string(element("""{"@path":"/gone"}"""), ""))
-        assertNull(bindings.string(element("""{"@path":"/"}"""), ""))
-        assertNull(bindings.string(null, ""))
+        assertEquals("Ada", bindings.string(element("""{"@path":"/name"}""")))
+        assertEquals("3", bindings.string(element("""{"@path":"/n"}""")))
+        assertEquals("literal", bindings.string(element("\"literal\"")))
+        assertNull(bindings.string(element("""{"@path":"/missing"}""")))
+        assertNull(bindings.string(element("""{"@path":"/gone"}""")))
+        assertNull(bindings.string(element("""{"@path":"/"}""")))
+        assertNull(bindings.string(null))
     }
 
     @Test
-    fun aTemplateRendersOneChildPerItemWithRelativeBindings() {
-        val bindings = bindings(
-            """[{"id":"root","component":"Column"}]""",
-            """{"rows":[{"label":"a"},{"label":"b"}]}"""
-        )
-
-        val children = bindings.children(element("""{"componentId":"row","path":"/rows"}"""), "")
-
-        assertEquals(listOf(Child("row", "/rows/0"), Child("row", "/rows/1")), children)
-        assertEquals("b", bindings.string(element("""{"@path":"label"}"""), children[1].scope))
-        assertEquals("a", bindings.string(element("""{"@path":"/rows/0/label"}"""), children[1].scope))
-    }
-
-    @Test
-    fun staticChildrenKeepTheirScopeAndBadChildrenAreSkipped() {
+    fun childrenAreTheListedIdsAndAnythingElseRendersNothing() {
         val bindings = bindings("""[{"id":"root","component":"Column"}]""", "{}")
 
-        assertEquals(
-            listOf(Child("a", "/x/0"), Child("b", "/x/0")),
-            bindings.children(element("""["a","b"]"""), "/x/0")
-        )
-        assertEquals(emptyList(), bindings.children(element("""{"componentId":"r","path":"/none"}"""), ""))
-        assertEquals(emptyList(), bindings.children(element("\"text\""), ""))
-        assertEquals(emptyList(), bindings.children(null, ""))
+        assertEquals(listOf("a", "b"), bindings.children(element("""["a","b"]""")))
+        assertEquals(emptyList(), bindings.children(element("""{"componentId":"r","path":"/none"}""")))
+        assertEquals(emptyList(), bindings.children(element("\"text\"")))
+        assertEquals(emptyList(), bindings.children(null))
     }
 
     @Test

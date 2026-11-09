@@ -197,21 +197,32 @@ class SurfaceScreenshotTest {
     )
 
     @Test
-    fun listsClipTheirOverflowAndDoNotScroll() = show(
-        "list",
-        """[{"id":"root","component":"Row","children":["vertical","horizontal"]},
-        {"id":"vertical","component":"List","weight":1,"children":{"componentId":"row","path":"/items"}},
+    fun justifyStretchSharesTheMainAxisEquallyBetweenChildrenWithoutAWeight() = show(
+        "justify-stretch",
+        """[{"id":"root","component":"Column","align":"stretch","children":["row","column"]},
+        {"id":"row","component":"Row","justify":"stretch","children":["a","b","c"]},
+        {"id":"column","component":"Column","weight":1,"justify":"stretch","children":["c","d"]},
+        {"id":"a","component":"Card","child":"ta"},{"id":"ta","component":"Text","text":"A, one share"},
+        {"id":"b","component":"Card","weight":2,"child":"tb"},{"id":"tb","component":"Text","text":"B, weight 2"},
+        {"id":"c","component":"Card","child":"tc"},{"id":"tc","component":"Text","text":"C, one share"},
+        {"id":"d","component":"Card","weight":3,"child":"td"},{"id":"td","component":"Text","text":"D, weight 3"}]"""
+    )
+
+    @Test
+    fun listsClipTheirOverflowAndDoNotScroll() {
+        val rowIds = (1..26).joinToString(",") { "\"row$it\"" }
+        val rows = (1..26).joinToString(",") { """{"id":"row$it","component":"Text","text":"Row $it"}""" }
+        show(
+            "list",
+            """[{"id":"root","component":"Row","children":["vertical","horizontal"]},
+        {"id":"vertical","component":"List","weight":1,"children":[$rowIds]},
         {"id":"horizontal","component":"List","weight":1,"direction":"horizontal","children":["w1","w2","w3"]},
-        {"id":"row","component":"Text","text":{"@path":"name"}},
+        $rows,
         {"id":"w1","component":"Text","text":"### Wide item one"},
         {"id":"w2","component":"Text","text":"### Wide item two"},
-        {"id":"w3","component":"Text","text":"### Wide item three"}]""",
-        """{"items":[{"name":"Row 1"},{"name":"Row 2"},{"name":"Row 3"},{"name":"Row 4"},{"name":"Row 5"},
-        {"name":"Row 6"},{"name":"Row 7"},{"name":"Row 8"},{"name":"Row 9"},{"name":"Row 10"},{"name":"Row 11"},
-        {"name":"Row 12"},{"name":"Row 13"},{"name":"Row 14"},{"name":"Row 15"},{"name":"Row 16"},
-        {"name":"Row 17"},{"name":"Row 18"},{"name":"Row 19"},{"name":"Row 20"},{"name":"Row 21"},
-        {"name":"Row 22"},{"name":"Row 23"},{"name":"Row 24"},{"name":"Row 25"},{"name":"Row 26"}]}"""
-    )
+        {"id":"w3","component":"Text","text":"### Wide item three"}]"""
+        )
+    }
 
     @Test
     fun cardAndDividers() = show(

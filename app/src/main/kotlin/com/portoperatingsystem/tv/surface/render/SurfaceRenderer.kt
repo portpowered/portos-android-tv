@@ -58,7 +58,7 @@ internal fun SurfaceScreen(model: SurfaceModel?, modifier: Modifier = Modifier) 
             .background(PortosTokens.Colors.background)
             .padding(PortosTokens.Display.safeAreaInset)
     ) {
-        if (model != null) Node(Renderer(Bindings(model)), Child(ROOT, ""), Modifier)
+        if (model != null) Node(Renderer(Bindings(model)), ROOT, Modifier)
     }
 }
 
@@ -66,18 +66,18 @@ private class Renderer(val bindings: Bindings)
 
 /** Renders one component, found by id, with [modifier] from its parent (which carries the weight). */
 @Composable
-private fun Node(renderer: Renderer, child: Child, modifier: Modifier) {
-    val component = renderer.bindings.component(child.id) ?: return
+private fun Node(renderer: Renderer, id: String, modifier: Modifier) {
+    val component = renderer.bindings.component(id) ?: return
     when ((component["component"] as? JsonPrimitive)?.content) {
-        "Text" -> TextNode(renderer, component, child.scope, modifier)
-        "Image" -> ImageNode(renderer, component, child.scope, modifier)
-        "Icon" -> IconNode(renderer, component, child.scope, modifier)
-        "Row" -> RowNode(renderer, component, child, modifier)
-        "Column" -> ColumnNode(renderer, component, child, modifier)
-        "List" -> ListNode(renderer, component, child, modifier)
-        "Card" -> CardNode(renderer, component, child, modifier)
+        "Text" -> TextNode(renderer, component, modifier)
+        "Image" -> ImageNode(renderer, component, modifier)
+        "Icon" -> IconNode(renderer, component, modifier)
+        "Row" -> RowNode(renderer, component, modifier)
+        "Column" -> ColumnNode(renderer, component, modifier)
+        "List" -> ListNode(renderer, component, modifier)
+        "Card" -> CardNode(renderer, component, modifier)
         "Divider" -> DividerNode(component, modifier)
-        "Timer" -> TimerNode(renderer, component, child.scope, modifier)
+        "Timer" -> TimerNode(renderer, component, modifier)
         else -> Unit
     }
 }
@@ -96,8 +96,8 @@ private fun headingStyle(level: Int): TextStyle = when (level) {
 }
 
 @Composable
-private fun TextNode(renderer: Renderer, component: JsonObject, scope: String, modifier: Modifier) {
-    val text = renderer.bindings.string(component["text"], scope).orEmpty()
+private fun TextNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val text = renderer.bindings.string(component["text"]).orEmpty()
     val caption = component.text("variant") == "caption"
     Column(modifier) {
         for (line in Markdown.lines(text)) {
@@ -143,9 +143,9 @@ private fun imageBox(variant: String?): ImageBox = when (variant) {
 }
 
 @Composable
-private fun ImageNode(renderer: Renderer, component: JsonObject, scope: String, modifier: Modifier) {
-    val url = renderer.bindings.string(component["url"], scope)
-    val description = renderer.bindings.string(component["description"], scope)
+private fun ImageNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val url = renderer.bindings.string(component["url"])
+    val description = renderer.bindings.string(component["description"])
     val source = LocalImageSource.current
     val loaded by produceState<Loaded>(Loaded.Loading, url, source) {
         value = Loaded.Loading
@@ -180,8 +180,8 @@ private fun Placeholder() {
 }
 
 @Composable
-private fun IconNode(renderer: Renderer, component: JsonObject, scope: String, modifier: Modifier) {
-    val vector = IconNames.vector(renderer.bindings.string(component["name"], scope))
+private fun IconNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val vector = IconNames.vector(renderer.bindings.string(component["name"]))
     if (vector == null) {
         Box(modifier.size(PortosTokens.Sizes.iconMd))
     } else {
@@ -224,47 +224,49 @@ private fun crossHorizontal(align: String?): Alignment.Horizontal = when (align)
     else -> Alignment.Start
 }
 
-/** A child's own weight in a Row, or its natural size. */
+/** A child's own weight in a Row or Column; with `justify: stretch`, a child without one takes an equal share. */
 @Composable
-private fun RowScope.Weighted(renderer: Renderer, child: Child) {
-    val weight = renderer.bindings.component(child.id)?.weight()
-    Node(renderer, child, if (weight == null) Modifier else Modifier.weight(weight))
+private fun RowScope.Weighted(renderer: Renderer, id: String, stretch: Boolean) {
+    val weight = renderer.bindings.component(id)?.weight() ?: if (stretch) 1f else null
+    Node(renderer, id, if (weight == null) Modifier else Modifier.weight(weight))
 }
 
 @Composable
-private fun ColumnScope.Weighted(renderer: Renderer, child: Child) {
-    val weight = renderer.bindings.component(child.id)?.weight()
-    Node(renderer, child, if (weight == null) Modifier else Modifier.weight(weight))
+private fun ColumnScope.Weighted(renderer: Renderer, id: String, stretch: Boolean) {
+    val weight = renderer.bindings.component(id)?.weight() ?: if (stretch) 1f else null
+    Node(renderer, id, if (weight == null) Modifier else Modifier.weight(weight))
 }
 
 @Composable
-private fun RowNode(renderer: Renderer, component: JsonObject, child: Child, modifier: Modifier) {
-    val stretch = component.text("align") == "stretch"
+private fun RowNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val crossStretch = component.text("align") == "stretch"
+    val stretch = component.text("justify") == "stretch"
     Row(
-        modifier = modifier.fillMaxWidth().then(if (stretch) Modifier.fillMaxHeight() else Modifier),
+        modifier = modifier.fillMaxWidth().then(if (crossStretch) Modifier.fillMaxHeight() else Modifier),
         horizontalArrangement = horizontal(component.text("justify")),
         verticalAlignment = crossVertical(component.text("align"))
     ) {
-        for (item in renderer.bindings.children(component["children"], child.scope)) Weighted(renderer, item)
+        for (item in renderer.bindings.children(component["children"])) Weighted(renderer, item, stretch)
     }
 }
 
 @Composable
-private fun ColumnNode(renderer: Renderer, component: JsonObject, child: Child, modifier: Modifier) {
-    val stretch = component.text("align") == "stretch"
+private fun ColumnNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val crossStretch = component.text("align") == "stretch"
+    val stretch = component.text("justify") == "stretch"
     Column(
-        modifier = modifier.then(if (stretch) Modifier.fillMaxWidth() else Modifier),
+        modifier = modifier.then(if (crossStretch) Modifier.fillMaxWidth() else Modifier),
         verticalArrangement = vertical(component.text("justify")),
         horizontalAlignment = crossHorizontal(component.text("align"))
     ) {
-        for (item in renderer.bindings.children(component["children"], child.scope)) Weighted(renderer, item)
+        for (item in renderer.bindings.children(component["children"])) Weighted(renderer, item, stretch)
     }
 }
 
 /** A List never scrolls: nothing on the TV can be focused. Children lay out at full size; the overflow is cut. */
 @Composable
-private fun ListNode(renderer: Renderer, component: JsonObject, child: Child, modifier: Modifier) {
-    val items = renderer.bindings.children(component["children"], child.scope)
+private fun ListNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
+    val items = renderer.bindings.children(component["children"])
     if (component.text("direction") == "horizontal") {
         Box(modifier.fillMaxWidth().clipToBounds()) {
             Row(
@@ -285,7 +287,7 @@ private fun ListNode(renderer: Renderer, component: JsonObject, child: Child, mo
 }
 
 @Composable
-private fun CardNode(renderer: Renderer, component: JsonObject, child: Child, modifier: Modifier) {
+private fun CardNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
     val shape = PortosTokens.Shapes.card
     Box(
         modifier.shadow(PortosTokens.Elevation.raised, shape)
@@ -293,7 +295,7 @@ private fun CardNode(renderer: Renderer, component: JsonObject, child: Child, mo
             .background(PortosTokens.Colors.card)
             .padding(PortosTokens.Sizes.cardPadding)
     ) {
-        component.text("child")?.let { Node(renderer, Child(it, child.scope), Modifier) }
+        component.text("child")?.let { Node(renderer, it, Modifier) }
     }
 }
 
@@ -336,7 +338,7 @@ internal fun readTimer(mode: String?, endsAt: Long?, startedAt: Long?, doneText:
     }
 
 @Composable
-private fun TimerNode(renderer: Renderer, component: JsonObject, scope: String, modifier: Modifier) {
+private fun TimerNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
     val clock = LocalTimerClock.current
     var now by remember(clock) { mutableLongStateOf(clock.nowMillis()) }
     LaunchedEffect(clock) {
@@ -345,12 +347,12 @@ private fun TimerNode(renderer: Renderer, component: JsonObject, scope: String, 
             now = clock.nowMillis()
         }
     }
-    val label = renderer.bindings.string(component["label"], scope)
+    val label = renderer.bindings.string(component["label"])
     val reading = readTimer(
         component.text("mode"),
-        parseMillis(renderer.bindings.string(component["endsAt"], scope)),
-        parseMillis(renderer.bindings.string(component["startedAt"], scope)),
-        renderer.bindings.string(component["doneText"], scope),
+        parseMillis(renderer.bindings.string(component["endsAt"])),
+        parseMillis(renderer.bindings.string(component["startedAt"])),
+        renderer.bindings.string(component["doneText"]),
         now
     ) ?: return
     val color = if (reading.done) PortosTokens.Colors.primaryEmphasis else PortosTokens.Colors.foreground

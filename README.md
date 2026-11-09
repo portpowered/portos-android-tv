@@ -328,8 +328,8 @@ Port OS (or an agent) can put a screen on the TV. The app keeps a WebSocket to t
 registers its display capability (size, density, supported components) when it connects.
 
 - **Parsing.** `androidx.a2ui` is not used (its published artifact does not fit this app's minSdk and Compose
-  versions), so `surface/a2ui/` parses with kotlinx.serialization: flat component lists, `{"@path"}` bindings and
-  `{componentId, path}` templates.
+  versions), so `surface/a2ui/` parses with kotlinx.serialization: flat component lists and absolute `{"@path"}`
+  bindings (no templates, no relative paths).
 - **Rendering.** `surface/render/` is our own Compose for TV renderer for Text, Image, Icon, Row, Column, List, Card,
   Divider and Timer. Every color, length and type size comes from `PortosTokens`; detekt's `ForbiddenImport` bans
   `Color`, `dp`, `sp` and `em` literals there.
