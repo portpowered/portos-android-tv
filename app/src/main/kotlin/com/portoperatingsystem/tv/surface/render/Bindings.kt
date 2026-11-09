@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 
 private const val PATH_KEY = "@path"
 
-/** Reads component properties against the surface's data model. A property is a literal or a `{"@path": "/x"}` binding. */
+/** Reads component properties against the data model: a property is a literal or a `{"@path": "/x"}` binding. */
 internal class Bindings(private val model: SurfaceModel) {
     fun component(id: String): JsonObject? = model.components[id]
 
