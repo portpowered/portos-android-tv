@@ -59,7 +59,7 @@ internal data class StateSnapshot(
     val accessibilityEnabled: Boolean,
     val input: InputCapabilities,
     val applications: List<String>? = null,
-    /** The `generativeUi` capability registration, present on the first report after the app starts. */
+    /** The `generativeUi` registration: on the first report after the app starts, then every 24 hours. */
     val generativeUi: JsonObject? = null
 ) {
     /** The `report-state` payload pushed to `POST /messages` (protocol in the README). */

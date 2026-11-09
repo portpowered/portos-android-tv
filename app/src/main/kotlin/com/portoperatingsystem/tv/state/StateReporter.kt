@@ -15,7 +15,6 @@ import com.portoperatingsystem.tv.control.AndroidDevice
 import com.portoperatingsystem.tv.control.InputCapabilities
 import com.portoperatingsystem.tv.control.isMuted
 import com.portoperatingsystem.tv.protocol.media.MediaIdentity
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
 import kotlinx.serialization.json.JsonObject
 
@@ -33,8 +32,9 @@ internal class StateReporter(
 ) {
     @Volatile private var lastCommandAt = 0L
 
-    // The capability registration rides on the first report after the app starts (every start and upgrade).
-    private val registrationPending = AtomicBoolean(true)
+    // The capability registration rides on the first report after the app starts (every start and upgrade), and
+    // again once a day, because the backend expires a registration that is not renewed.
+    private val registration = RegistrationSchedule()
 
     /** Records that a command just ran, so a state read right after it waits for the TV to settle. */
     fun commandRan() {
@@ -69,11 +69,11 @@ internal class StateReporter(
     fun report(requestId: String? = null, outcome: CommandOutcome? = null): Boolean {
         if (session.authLinkId == null) return true
         return try {
-            val registering = registrationPending.get()
+            val registering = registration.due()
             val read = if (outcome == null) snapshot() else settledSnapshot(outcome)
             val snapshot = if (registering) read.copy(generativeUi = generativeUi()) else read
             sender.reportState(snapshot.payload(requestId = requestId, outcome = outcome))
-            if (registering) registrationPending.set(false)
+            if (registering) registration.sent()
             onReported(snapshot.playback == Playback.PLAYING)
             true
         } catch (error: PortOsException) {

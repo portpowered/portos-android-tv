@@ -58,18 +58,21 @@ class GatewayConnectorTest {
         healthyMillis = 60_000
     )
 
-    private fun connector(timing: GatewayTiming = quiet, onText: (String) -> Unit = { received += it }) =
-        GatewayConnector(
-            http = OkHttpClient(),
-            gatewayUrl = server.url("/").toString(),
-            authLinkId = { "link-1" },
-            tokens = tokens,
-            position = { position },
-            onText = onText,
-            scope = scope,
-            timing = timing,
-            random = { 1.0 }
-        )
+    private fun connector(
+        timing: GatewayTiming = quiet,
+        link: String = "link-1",
+        onText: (String) -> Unit = { received += it }
+    ) = GatewayConnector(
+        http = OkHttpClient(),
+        gatewayUrl = server.url("/").toString(),
+        authLinkId = { link },
+        tokens = tokens,
+        position = { position },
+        onText = onText,
+        scope = scope,
+        timing = timing,
+        random = { 1.0 }
+    )
 
     @AfterTest
     fun stop() {
@@ -123,6 +126,15 @@ class GatewayConnectorTest {
         assertNull(first.requestUrl?.queryParameter("showId"))
         assertNull(first.requestUrl?.queryParameter("lastSequence"))
         await("connected") { connector.state.value == ConnectionState.Connected }
+    }
+
+    @Test
+    fun anAuthLinkIdWithSlashesIsOnePercentEncodedPathSegment() {
+        server.enqueue(staying())
+
+        connector(link = "port1/users/u/auth-links/x").wake()
+
+        assertEquals("/devices/port1%2Fusers%2Fu%2Fauth-links%2Fx", request().path?.substringBefore('?'))
     }
 
     @Test

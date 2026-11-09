@@ -245,7 +245,11 @@ internal class GatewayConnector(
     }
 
     private fun url(authLink: String): okhttp3.HttpUrl {
-        val builder = "${gatewayUrl.trimEnd('/')}/devices/$authLink".toHttpUrl().newBuilder()
+        // An auth link id contains slashes (`port1/<owner>/auth-links/<uuid>`): it is one path segment, so `/` is
+        // sent as `%2F` and the gateway decodes it back.
+        val builder = gatewayUrl.toHttpUrl().newBuilder()
+            .addPathSegment("devices")
+            .addPathSegment(authLink)
         position()?.let { held ->
             builder.addQueryParameter("surfaceId", held.surfaceId)
                 .addQueryParameter("showId", held.showId)
