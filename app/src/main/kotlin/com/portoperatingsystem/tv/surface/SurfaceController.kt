@@ -129,7 +129,10 @@ internal class SurfaceController(
         val messages = try {
             A2uiParser.parseAll(message.payload["a2ui"])
         } catch (error: A2uiException) {
-            Log.w(TAG, "show-surface refused: ${error.message}")
+            // The gateway holds this show-surface as the surface's log head, so the TV cannot keep the surface it had:
+            // the old one would be reported by get-surface although the log no longer describes it.
+            Log.w(TAG, "show-surface unparseable, held surface cleared: ${error.message}")
+            if (mutableState.value != null) close()
             return
         }
         val first = messages.indexOfFirst { it is A2uiMessage.CreateSurface }

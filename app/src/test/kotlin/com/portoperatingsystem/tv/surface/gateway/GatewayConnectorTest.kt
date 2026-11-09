@@ -60,7 +60,7 @@ class GatewayConnectorTest {
 
     private fun connector(
         timing: GatewayTiming = quiet,
-        link: String = "link-1",
+        link: String? = "link-1",
         onText: (String) -> Unit = { received += it }
     ) = GatewayConnector(
         http = OkHttpClient(),
@@ -234,6 +234,19 @@ class GatewayConnectorTest {
         await("pair again") { connector.state.value == ConnectionState.PairAgain }
         Thread.sleep(300)
         assertEquals(1, server.requestCount)
+    }
+
+    // No auth link (the TV was never paired, or its pairing was cleared): reconnecting cannot help.
+    @Test
+    fun aTvWithoutAnAuthLinkAsksToPairAgainInsteadOfBackingOff() {
+        val connector = connector(link = null)
+
+        connector.wake()
+
+        await("pair again") { connector.state.value == ConnectionState.PairAgain }
+        Thread.sleep(300)
+        assertEquals(ConnectionState.PairAgain, connector.state.value)
+        assertEquals(0, server.requestCount)
     }
 
     // JWKS unreachable: a retryable close.

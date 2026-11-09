@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.boolean
@@ -283,6 +284,27 @@ class SurfaceControllerTest {
 
         assertNull(controller.state.value)
         assertEquals(0, effects.shown)
+    }
+
+    @Test
+    fun anUnparseableShowClearsTheHeldSurfaceSoGetSurfaceReportsTheTruth() {
+        controller.receive(show())
+        controller.setVisible(true)
+        assertEquals(1, effects.shown)
+
+        controller.receive(message("show-surface", "show-2", 1, """{"surfaceId":"s","a2ui":"nope"}"""))
+
+        assertNull(controller.state.value)
+        assertNull(controller.position())
+        assertEquals(1, effects.closed)
+        controller.receive(message("get-surface", "g", null, """{"surfaceId":"s"}""", token = "tok-1"))
+        val payload = effects.replies.single().second
+        assertEquals(JsonNull, payload.getValue("surfaceId"))
+        assertEquals(false, payload.getValue("visible").jsonPrimitive.boolean)
+        assertEquals(0, payload.getValue("sequence").jsonPrimitive.long)
+        // The refused show's id is not remembered: the same id can be shown once it parses.
+        controller.receive(show(id = "show-2", text = "fixed"))
+        assertEquals("fixed", text())
     }
 
     @Test

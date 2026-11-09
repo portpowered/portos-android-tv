@@ -109,6 +109,9 @@ internal class GatewayConnector(
         data class Failed(val httpCode: Int?) : Ended
 
         data object Local : Ended
+
+        /** The TV has no auth link: nothing to connect to until it is paired again. */
+        data object Unpaired : Ended
     }
 
     private suspend fun run() {
@@ -146,15 +149,20 @@ internal class GatewayConnector(
                     refresh = true
                 }
                 Next.STOP -> return stopped("replaced")
+                Next.PAIR_AGAIN -> {
+                    mutableState.value = ConnectionState.PairAgain
+                    return
+                }
                 Next.BACKOFF -> attempt = backoff(attempt)
             }
         }
     }
 
-    private enum class Next { NOW, REFRESH_BACKOFF, REFRESH_ONCE, STOP, BACKOFF }
+    private enum class Next { NOW, REFRESH_BACKOFF, REFRESH_ONCE, STOP, BACKOFF, PAIR_AGAIN }
 
     private fun classify(ended: Ended): Next = when (ended) {
         Ended.Local -> Next.NOW
+        Ended.Unpaired -> Next.PAIR_AGAIN
         is Ended.Closed -> byCode(ended.code)
         is Ended.Failed -> byCode(ended.httpCode ?: 0)
     }
@@ -182,7 +190,7 @@ internal class GatewayConnector(
     }
 
     private suspend fun connectOnce(token: String, openedFor: LongArray): Ended {
-        val id = authLinkId() ?: return Ended.Failed(null).also { Log.w(TAG, "not paired") }
+        val id = authLinkId() ?: return Ended.Unpaired.also { Log.w(TAG, "no auth link: pair the TV again") }
         localClose = false
         val ended = CompletableDeferred<Ended>()
         var openedAt = 0L
