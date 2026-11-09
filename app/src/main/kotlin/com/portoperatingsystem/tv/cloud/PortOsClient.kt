@@ -64,10 +64,13 @@ internal sealed interface PollResult {
 }
 
 /** A Port OS call that failed. [retryable] is true for network errors and 5xx. */
-internal class PortOsException(message: String, val retryable: Boolean, cause: Throwable? = null) :
+internal open class PortOsException(message: String, val retryable: Boolean, cause: Throwable? = null) :
     IOException(message, cause)
 
-/** The Port OS HTTP API, as the TV uses it. Every request is signed or DPoP-proven by [signer]. */
+/**
+ * The Port OS HTTP API, as the TV uses it. Token requests are DPoP-proven by [signer]; messages use the bearer
+ * token.
+ */
 internal class PortOsClient(
     private val http: OkHttpClient,
     private val baseUrl: String,
@@ -146,12 +149,16 @@ internal class PortOsClient(
         return json.decodeFromString<ExchangeResponse>(execute(request)).authLinkId
     }
 
-    /** Posts signed state [claims] to this TV's installation webhook. */
-    fun report(authLinkId: String, claims: JsonObject) {
-        val jws = Jose.sign(signer, claims, buildJsonObject { put("typ", "JWT") })
+    /**
+     * Pushes [message] (the design's message shape) to `POST /messages`, authenticated by [accessToken] and made
+     * idempotent by [idempotencyKey]; a retry of the same message passes the same key.
+     */
+    fun postMessage(accessToken: String, message: JsonObject, idempotencyKey: String = UUID.randomUUID().toString()) {
         val request = Request.Builder()
-            .url("$baseUrl/webhooks/android-tv/installations/$authLinkId")
-            .post(jws.toRequestBody(JWS))
+            .url("$baseUrl/messages")
+            .header("Authorization", "Bearer $accessToken")
+            .header("Idempotency-Key", idempotencyKey)
+            .post(message.toString().toRequestBody(JSON))
             .build()
         execute(request)
     }
@@ -212,6 +219,5 @@ internal class PortOsClient(
         const val SERVER_ERROR = 500
         const val DEVICE_CODE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
         val JSON = "application/json".toMediaType()
-        val JWS = "application/jose".toMediaType()
     }
 }

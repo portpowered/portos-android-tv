@@ -73,3 +73,16 @@ keep accepting older app versions, because installed TVs update late.
   `StateReporter.reportOutcome` waits for the media session to show the new queue length before reading state.
   Robolectric's ExoPlayer never reaches READY, so tests call `PlaybackService.answerWhenShown` directly. Keep the
   plugin's `playback-result` handling and the failure codes in step with this.
+
+## Generative UI (`surface/`)
+
+- `surface/PortosTokens.kt` is generated in the monorepo; never edit it. `make sync-tokens MONOREPO=<path>` vendors it
+  and records the commit and SHA-256 (`TokensTest` checks both).
+- The renderer (`surface/render/`) must take colors, lengths and type sizes from `PortosTokens`; detekt's
+  `ForbiddenImport` bans `Color`, `dp`, `sp` and `em` there. Heading levels map `#` to `headline`, `##` to
+  `pageTitle`, `###` to `sectionHeading`, deeper to `subsectionHeading`.
+- Screenshot goldens live in `app/src/test/screenshots/`. `make test` verifies; `make record-screenshots` re-records.
+  Do not set `roborazzi.test.verify` in gradle.properties: it overrides record.
+- Replies to `get-surface` go to `POST /messages` with `context.correlationToken` copied; never over the WebSocket.
+- A gap in `context.sequence` is held 5 seconds, then the connector reconnects with `surfaceId`, `showId`,
+  `lastSequence`.

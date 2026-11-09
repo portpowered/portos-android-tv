@@ -10,7 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class StateSnapshotTest {
     @Test
-    fun claimsCarryEveryKnownField() {
+    fun payloadCarriesEveryKnownField() {
         val snapshot = StateSnapshot(
             sampledAtMs = 100_123,
             playback = Playback.PLAYING,
@@ -25,7 +25,7 @@ class StateSnapshotTest {
         assertEquals(
             Json.parseToJsonElement(
                 """
-                {"iat":100,"sampledAtMs":100123,"jti":"j","reports":{
+                {"sampledAtMs":100123,"reports":{
                   "playbackState":"PLAYING",
                   "nowPlaying":{"active":true,"app":"com.google.android.youtube.tv","name":"Song","artist":"Artist",
                     "positionMs":1234},
@@ -35,12 +35,12 @@ class StateSnapshotTest {
                     "accessibilityEnabled":true}}}
                 """.trimIndent()
             ),
-            snapshot.claims(nowSeconds = 100, jti = "j")
+            snapshot.payload()
         )
     }
 
     @Test
-    fun claimsListTheLaunchableAppsWhenKnown() {
+    fun payloadListsTheLaunchableAppsWhenKnown() {
         val snapshot = StateSnapshot(
             sampledAtMs = 1,
             playback = null,
@@ -53,7 +53,7 @@ class StateSnapshotTest {
             input = InputCapabilities(touch = false, directionalKeys = false),
             applications = listOf("com.netflix.ninja", "com.spotify.tv.android")
         )
-        val reports = snapshot.claims(nowSeconds = 1, jti = "j").getValue("reports").jsonObject
+        val reports = snapshot.payload().getValue("reports").jsonObject
         assertEquals(
             Json.parseToJsonElement("""["com.netflix.ninja","com.spotify.tv.android"]"""),
             reports.getValue("applications")
@@ -76,13 +76,13 @@ class StateSnapshotTest {
         assertEquals(
             Json.parseToJsonElement(
                 """
-                {"iat":5,"sampledAtMs":5123,"jti":"j","reports":{"volume":0,"muted":true,
+                {"sampledAtMs":5123,"reports":{"volume":0,"muted":true,
                   "input":{"touch":false,"directionalKeys":false},
                   "connectivity":{"backgroundLaunchAllowed":false,"mediaAccessAllowed":false,
                     "accessibilityEnabled":false}}}
                 """.trimIndent()
             ),
-            snapshot.claims(nowSeconds = 5, jti = "j")
+            snapshot.payload()
         )
     }
 
@@ -100,7 +100,7 @@ class StateSnapshotTest {
             accessibilityEnabled = true,
             input = InputCapabilities(touch = true, directionalKeys = true)
         )
-        val claims = snapshot.claims(nowSeconds = 1, jti = "j", requestId = "req-1")
+        val claims = snapshot.payload(requestId = "req-1")
         assertEquals("req-1", claims["requestId"]?.jsonPrimitive?.content)
         assertEquals(1_000L, claims["sampledAtMs"]?.jsonPrimitive?.content?.toLong())
         val nowPlaying = claims["reports"]!!.jsonObject["nowPlaying"]!!.jsonObject
@@ -122,7 +122,7 @@ class StateSnapshotTest {
             accessibilityEnabled = true,
             input = InputCapabilities(touch = true, directionalKeys = true)
         )
-        val nowPlaying = snapshot.claims(nowSeconds = 1, jti = "j")["reports"]!!.jsonObject["nowPlaying"]!!.jsonObject
+        val nowPlaying = snapshot.payload()["reports"]!!.jsonObject["nowPlaying"]!!.jsonObject
         assertEquals(4, nowPlaying["queuePosition"]?.jsonPrimitive?.content?.toInt())
         assertEquals(20, nowPlaying["queueLength"]?.jsonPrimitive?.content?.toInt())
     }
@@ -148,9 +148,8 @@ class StateSnapshotTest {
             accessibilityEnabled = true,
             input = InputCapabilities(touch = true, directionalKeys = true)
         )
-        val first = snapshot(1_700_000_000_120, position = 5_000).claims(nowSeconds = 1_700_000_000, jti = "a")
-        val second = snapshot(1_700_000_000_640, position = 5_520).claims(nowSeconds = 1_700_000_000, jti = "b")
-        assertEquals(first["iat"], second["iat"])
+        val first = snapshot(1_700_000_000_120, position = 5_000).payload()
+        val second = snapshot(1_700_000_000_640, position = 5_520).payload()
         assertEquals(1_700_000_000_120L, first["sampledAtMs"]?.jsonPrimitive?.content?.toLong())
         assertEquals(1_700_000_000_640L, second["sampledAtMs"]?.jsonPrimitive?.content?.toLong())
     }

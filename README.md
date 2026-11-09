@@ -182,15 +182,15 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
      gesture callback, so a cancelled gesture fails with `TAP_CANCELLED`; a TV with no touch input and no adb fails with
      `TAP_NEEDS_TOUCH_OR_ADB`; without the service the tap fails with `ACCESSIBILITY_NOT_ENABLED`. Failures are
      logged on the TV (`PortOsCommand`); FCM is one-way, so Port OS does not see them.
-   - **Screen capture** (`snapshot/get-snapshot`). FCM is one-way, so the app answers through the webhook: the same
+   - **Screen capture** (`snapshot/get-snapshot`). FCM is one-way, so the app answers through `POST /messages`: the same
      service takes a screenshot (`takeScreenshot`, Android 11 and later), shrinks it to a JPEG of at most 4 MiB,
-     starting at the full width (up to 3840 px, a whole 4K frame) at quality 85 and stepping down (the installation
-     webhook accepts 8 MiB bodies), and posts it signed, tagged with the request's message id.
+     starting at the full width (up to 3840 px, a whole 4K frame) at quality 85 and stepping down (the message
+     endpoint accepts 8 MiB bodies), and posts it as a message, tagged with the request's message id.
      The plugin turns it into the `get-snapshot-response` that the waiting caller receives. If the service is
      off or nothing fits the limit, no answer is posted and the caller times out after its reply window.
 3. **State (TV → cloud).** The app watches active media sessions and the volume, and posts attribute reports
-   (now playing, playback state, volume, mute, connectivity) to the plugin's webhook, signed with the device
-   key. A heartbeat every 15 minutes (WorkManager's minimum) keeps connectivity fresh. Each report also says which
+   (now playing, playback state, volume, mute, connectivity) to `POST /messages`, authenticated with the
+   user's access token. A heartbeat every 15 minutes (WorkManager's minimum) keeps connectivity fresh. Each report also says which
    input the TV can deliver (`reports.input`: `touch`, `directionalKeys`), so the plugin only declares `touch-input`
    and the arrow keys on a route when they can work: touch needs a touch feature or local adb, the arrows need
    Android 13 or local adb.
@@ -242,8 +242,8 @@ and message id; every part repeats `title`, `secondsPerImage` and `loop`. `image
 
 ### State report format
 
-`POST /webhooks/android-tv/installations/{authLinkId}`, `Content-Type: application/jose`, body a compact JWS
-(`alg` ES256, `typ` JWT) signed with the key submitted at pairing. Claims:
+`POST {apiBase}/messages` with `Authorization: Bearer <access token>` and an `Idempotency-Key` header. The body is a
+message addressed to this TV's route (the device id), with the report in its payload. Fields:
 
 ```json
 {
@@ -276,7 +276,7 @@ warning when it is false and older apps simply omit it.
 #### Outcome of a media command
 
 After `play-video`, `play-audio`, `show-images`, `add-images` or `remove-images` the app posts one report exactly
-like the answer to `report-attributes` (same JWS, `requestId` = the command's message id, the usual `reports` read
+like the answer to `report-attributes` (same message, `requestId` = the command's message id, the usual `reports` read
 after the change, so `nowPlaying.queuePosition`, `queueLength`, `name` and `playbackState` are the new state) plus an
 `outcome` claim. Each command id is answered once.
 
@@ -320,6 +320,29 @@ A screenshot answer uses the same envelope with a `snapshot` claim instead of `r
 The plugin accepts only a JPEG of at most 524,288 bytes whose `requestId` matches a request it pushed in the last
 60 seconds, and answers each request once.
 
+## Generative UI
+
+Port OS (or an agent) can put a screen on the TV. The app keeps a WebSocket to the device gateway
+(`GET {GATEWAY_URL}/devices/{authLinkId}?surfaceId=&showId=&lastSequence=`, access token as the bearer) and receives
+`show-surface`, `update-surface`, `close-surface` and `get-surface` messages carrying A2UI v1.0 components. The app
+registers its display capability (size, density, supported components) when it connects.
+
+- **Parsing.** `androidx.a2ui` is not used (its published artifact does not fit this app's minSdk and Compose
+  versions), so `surface/a2ui/` parses with kotlinx.serialization: flat component lists, `{"@path"}` bindings and
+  `{componentId, path}` templates.
+- **Rendering.** `surface/render/` is our own Compose for TV renderer for Text, Image, Icon, Row, Column, List, Card,
+  Divider and Timer. Every color, length and type size comes from `PortosTokens`; detekt's `ForbiddenImport` bans
+  `Color`, `dp`, `sp` and `em` literals there.
+- **Ordering.** Each surface has a sequence. The TV applies only `last + 1`, ignores duplicates and holds an
+  out-of-order message for 5 seconds, then reconnects with `lastSequence` so the gateway replays the gap. The held
+  surface is in memory only.
+- **Replies.** A `get-surface` is answered with a `get-surface-response` message on `POST /messages`, copying
+  `context.correlationToken`. Nothing is sent back over the WebSocket except `pong`.
+- **Pairing.** When the token cannot be refreshed the connector stops and the status screen shows "pair again".
+- **Tokens.** `make sync-tokens` copies the website's generated `PortosTokens.kt` from a monorepo checkout
+  (`MONOREPO=/path`) and records its commit and SHA-256 in the header. `TokensTest` fails if the vendored file was
+  edited by hand.
+
 ## Layout
 
 ```
@@ -341,6 +364,8 @@ devices/android-tv/
         │                    the accessibility service (remote keys, screenshots) and its upload
         ├── playback/        play-uri, play-video, play-audio, slideshows: Media3 ExoPlayer + MediaSession foreground service,
         │                    file downloads
+        ├── surface/         generative UI: A2UI parser (a2ui/), gateway WebSocket (gateway/), Compose renderer (render/),
+        │                    surface controller and activity, vendored PortosTokens.kt
         ├── state/           media-session listener, state snapshot and signed reports, workers
         └── ui/              pairing and status screens, text notification overlay, the full-screen player (leanback)
 ```
@@ -353,6 +378,9 @@ JVM. `:app` is the thin layer that touches Android APIs and is tested with Robol
 - `make test`: JVM unit tests for `:protocol` (media URIs, deep links, command decoding) and for `:app`
   (JOSE/DPoP signing, the HTTP client and the pairing flow against `MockWebServer` under Robolectric, command
   execution against a fake `DevicePort`, report claims).
+- Screenshot tests (Roborazzi, under Robolectric native graphics) render each component and a full surface against
+  goldens in `app/src/test/screenshots/`. `make test` verifies them; `make record-screenshots` re-records after an
+  intended change.
 - `make test-device`: instrumented tests on the connected emulator or TV (`ADB_SERIAL`). None exist yet;
   on-device behavior was verified by hand (see the design doc's spike findings).
 - End-to-end against a real backend: the backend's functional tests cover the plugin with a fake FCM; the

@@ -5,7 +5,6 @@ import android.util.Log
 import com.portoperatingsystem.tv.cloud.PortOsException
 import java.io.ByteArrayOutputStream
 import java.util.Base64
-import java.util.UUID
 import java.util.concurrent.Executor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -13,15 +12,14 @@ import kotlinx.serialization.json.put
 
 /**
  * Answers a `snapshot/get-snapshot` push: captures the screen through the accessibility service, shrinks it to fit
- * the webhook, and posts it signed with [requestId] so the plugin can complete the request that is waiting.
- * FCM is one-way, which is why the answer travels through the webhook rather than back along the push.
+ * the message limit, and posts it with [requestId] so the plugin can complete the request that is waiting.
+ * FCM is one-way, which is why the answer travels through `POST /messages` rather than back along the push.
  */
 internal class ScreenCapture(
     private val screen: () -> ScreenControl?,
     private val post: (JsonObject) -> Unit,
     private val background: Executor,
-    private val encode: (Bitmap) -> EncodedImage? = ::encodeBitmap,
-    private val clock: () -> Long = { System.currentTimeMillis() / MILLIS }
+    private val encode: (Bitmap) -> EncodedImage? = ::encodeBitmap
 ) {
     fun capture(requestId: String) {
         val control = screen()
@@ -40,7 +38,7 @@ internal class ScreenCapture(
             return
         }
         try {
-            post(snapshotClaims(requestId, image, clock()))
+            post(snapshotPayload(requestId, image))
             if (Log.isLoggable(TAG, Log.INFO)) Log.i(TAG, "snapshot $requestId sent (${image.bytes.size} bytes)")
         } catch (error: PortOsException) {
             Log.w(TAG, "snapshot $requestId upload failed: ${error.message}")
@@ -49,19 +47,11 @@ internal class ScreenCapture(
 
     private companion object {
         const val TAG = "PortOsSnapshot"
-        const val MILLIS = 1000L
     }
 }
 
-/** The signed claims for the installation webhook that carry one screenshot (protocol in the README). */
-internal fun snapshotClaims(
-    requestId: String,
-    image: EncodedImage,
-    nowSeconds: Long,
-    jti: String = UUID.randomUUID().toString()
-): JsonObject = buildJsonObject {
-    put("iat", nowSeconds)
-    put("jti", jti)
+/** The `report-state` payload that carries one screenshot (protocol in the README). */
+internal fun snapshotPayload(requestId: String, image: EncodedImage): JsonObject = buildJsonObject {
     put(
         "snapshot",
         buildJsonObject {

@@ -45,7 +45,11 @@ internal class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        if (graph.session.isPaired) showPaired() else startPairing()
+        when {
+            !graph.session.isPaired -> startPairing()
+            graph.session.needsPairing.value -> showPairAgain()
+            else -> showPaired()
+        }
     }
 
     override fun onDestroy() {
@@ -79,6 +83,7 @@ internal class MainActivity : Activity() {
             PairingState.Paired -> {
                 graph.scheduleHeartbeat()
                 graph.requestReport()
+                graph.connectGateway()
                 showPaired()
             }
             is PairingState.Failed -> {
@@ -90,6 +95,14 @@ internal class MainActivity : Activity() {
                 action.requestFocus()
             }
         }
+    }
+
+    private fun showPairAgain() {
+        show(getString(R.string.pair_again_title), getString(R.string.pair_again_detail))
+        action.text = getString(R.string.pair_again)
+        action.setOnClickListener { startPairing() }
+        action.visibility = View.VISIBLE
+        action.requestFocus()
     }
 
     private fun showPaired() {

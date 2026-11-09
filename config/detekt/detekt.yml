@@ -10,12 +10,40 @@ build:
 style:
   MaxLineLength:
     maxLineLength: 120
+    # Test fixtures hold whole JSON messages on one line; ktlint still checks formatting.
+    excludes: ['**/test/**']
+  # A parser reports each distinct malformed shape with its own typed error, and a pointer walk exits early.
+  ReturnCount:
+    max: 4
+    excludeGuardClauses: true
+  ThrowsCount:
+    max: 6
+  # The regex match for inline markdown has four groups, one per style.
+  DestructuringDeclarationWithTooManyEntries:
+    maxDestructuringEntries: 4
   # ktlint owns import ordering and wildcard policy; two tools disagreeing on one concern is noise.
   WildcardImport:
     active: true
-  # Early `?: return` guards keep validation flat; they are what the rule would otherwise push into nesting.
-  ReturnCount:
-    excludeGuardClauses: true
+  # The surface renderer takes every color, length and type size from PortosTokens (generated from the website's
+  # tokens.json). A literal in the renderer would drift from the design system, so the constructors are banned there.
+  ForbiddenImport:
+    active: true
+    includes: ['**/surface/render/**']
+    imports:
+      - 'androidx.compose.ui.graphics.Color'
+      - 'androidx.compose.ui.graphics.Color.Companion.*'
+      - 'androidx.compose.ui.unit.dp'
+      - 'androidx.compose.ui.unit.sp'
+      - 'androidx.compose.ui.unit.em'
+      - 'androidx.compose.ui.unit.TextUnit'
+    forbiddenPatterns: ''
+
+complexity:
+  # The renderer is one small function per A2UI component (Compose idiom), and the wiring classes own one collaborator
+  # each; splitting them further only scatters one concern across files.
+  TooManyFunctions:
+    thresholdInClasses: 15
+    thresholdInFiles: 30
 
 comments:
   # Public API of the :protocol library must be documented; Android framework overrides need not be.
@@ -28,5 +56,7 @@ comments:
 
 naming:
   # JUnit test names are sentences in backticks.
+  # Compose UI functions are PascalCase nouns by the Compose API guidelines.
   FunctionNaming:
     excludes: ['**/test/**']
+    ignoreAnnotated: ['Composable']

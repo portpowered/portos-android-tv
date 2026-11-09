@@ -16,4 +16,10 @@
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@color/overlay_dim</item>
     </style>
+
+    <!-- The generative UI surface: opaque and full screen; Compose draws the whole window. -->
+    <style name="Theme.PortOs.Surface">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@color/background</item>
+    </style>
 </resources>

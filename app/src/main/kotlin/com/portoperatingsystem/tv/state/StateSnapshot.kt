@@ -1,7 +1,6 @@
 package com.portoperatingsystem.tv.state
 
 import com.portoperatingsystem.tv.control.InputCapabilities
-import java.util.UUID
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -59,18 +58,13 @@ internal data class StateSnapshot(
     val mediaAccessAllowed: Boolean,
     val accessibilityEnabled: Boolean,
     val input: InputCapabilities,
-    val applications: List<String>? = null
+    val applications: List<String>? = null,
+    /** The `generativeUi` capability registration, present on the first report after the app starts. */
+    val generativeUi: JsonObject? = null
 ) {
-    /** The signed claims for the installation webhook (protocol in the README). */
-    fun claims(
-        nowSeconds: Long,
-        jti: String = UUID.randomUUID().toString(),
-        requestId: String? = null,
-        outcome: CommandOutcome? = null
-    ): JsonObject = buildJsonObject {
-        put("iat", nowSeconds)
+    /** The `report-state` payload pushed to `POST /messages` (protocol in the README). */
+    fun payload(requestId: String? = null, outcome: CommandOutcome? = null): JsonObject = buildJsonObject {
         put("sampledAtMs", sampledAtMs)
-        put("jti", jti)
         requestId?.let { put("requestId", it) }
         put(
             "reports",
@@ -95,6 +89,7 @@ internal data class StateSnapshot(
                     )
                 }
                 applications?.let { put("applications", JsonArray(it.map(::JsonPrimitive))) }
+                generativeUi?.let { put("generativeUi", it) }
                 put("volume", volumePercent)
                 put("muted", muted)
                 put(

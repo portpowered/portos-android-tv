@@ -9,6 +9,8 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.roborazzi) apply false
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint) apply false
 }
@@ -25,6 +27,8 @@ subprojects {
         version.set(ktlintVersion)
         android.set(true)
         ignoreFailures.set(false)
+        // PortosTokens.kt is generated in the monorepo and vendored by `make sync-tokens`; it is not hand-formatted.
+        filter { exclude { it.file.name == "PortosTokens.kt" } }
     }
 
     configure<io.gitlab.arturbosch.detekt.extensions.DetektExtension> {

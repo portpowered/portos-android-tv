@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -19,7 +20,9 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.portoperatingsystem.tv.auth.CredentialStore
 import com.portoperatingsystem.tv.auth.KeystoreSigner
 import com.portoperatingsystem.tv.auth.Session
+import com.portoperatingsystem.tv.cloud.MessageSender
 import com.portoperatingsystem.tv.cloud.PortOsClient
+import com.portoperatingsystem.tv.cloud.PortOsException
 import com.portoperatingsystem.tv.cloud.Registration
 import com.portoperatingsystem.tv.control.AdbKeys
 import com.portoperatingsystem.tv.control.AndroidApps
@@ -44,12 +47,25 @@ import com.portoperatingsystem.tv.state.OutcomeSink
 import com.portoperatingsystem.tv.state.PlayingReports
 import com.portoperatingsystem.tv.state.ReportWorker
 import com.portoperatingsystem.tv.state.StateReporter
+import com.portoperatingsystem.tv.surface.Capability
+import com.portoperatingsystem.tv.surface.GatewayMessage
+import com.portoperatingsystem.tv.surface.SurfaceActivity
+import com.portoperatingsystem.tv.surface.SurfaceController
+import com.portoperatingsystem.tv.surface.SurfaceDisplay
+import com.portoperatingsystem.tv.surface.SurfaceEffects
+import com.portoperatingsystem.tv.surface.gateway.GatewayConnector
+import com.portoperatingsystem.tv.surface.gateway.TokenSource
+import com.portoperatingsystem.tv.surface.render.HttpImageSource
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.serialization.json.JsonObject
 import okhttp3.OkHttpClient
 
 /** Holds the app's object graph. There is no DI framework: the graph is small and built once here. */
@@ -60,7 +76,12 @@ internal class PortOsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph(this)
-        if (graph.session.isPaired) graph.scheduleHeartbeat()
+        if (graph.session.isPaired) {
+            graph.scheduleHeartbeat()
+            // Every start (and so every upgrade) registers what this build renders, with the real display.
+            graph.requestReport()
+            graph.connectGateway()
+        }
         graph.probeAdbSoon()
     }
 }
@@ -73,10 +94,11 @@ internal class AppGraph(private val context: Context) {
     val store = CredentialStore(context)
     val device = AndroidDevice(context)
     private val adb = LocalAdb(DadbTransport(AdbKeys(context.noBackupFilesDir)), SystemClock::elapsedRealtime)
+    private val realDisplay = RealDisplay(context)
     private val input = InputRouter(
         adb = adb,
         accessibility = ServiceInput(context),
-        display = RealDisplay(context)::size,
+        display = realDisplay::size,
         sdkInt = Build.VERSION.SDK_INT,
         hasTouchInput = hasTouchInput(context.packageManager)
     )
@@ -93,10 +115,12 @@ internal class AppGraph(private val context: Context) {
     private val background = Executors.newSingleThreadExecutor()
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
 
+    private val http = OkHttpClient.Builder()
+        .callTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
+
     val client = PortOsClient(
-        http = OkHttpClient.Builder()
-            .callTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .build(),
+        http = http,
         baseUrl = BuildConfig.API_BASE_URL,
         clientId = BuildConfig.OAUTH_CLIENT_ID,
         pluginId = BuildConfig.PLUGIN_ID,
@@ -104,11 +128,13 @@ internal class AppGraph(private val context: Context) {
     )
 
     val session = Session(client, store, ::registration, newIdentity = signer::reset)
+    private val sender = MessageSender(client, session) { store.deviceId }
     val reporter: StateReporter = StateReporter(
         context,
         device,
-        client,
+        sender,
         session,
+        generativeUi = { Capability.registration(displayInfo()) },
         launchableApps = apps::launchable,
         inputCapabilities = {
             probeAdbSoon()
@@ -140,9 +166,58 @@ internal class AppGraph(private val context: Context) {
 
     private val screenCapture = ScreenCapture(
         screen = { PortOsAccessibilityService.instance },
-        post = { claims -> session.authLinkId?.let { client.report(it, claims) } },
+        post = { claims -> if (session.authLinkId != null) sender.reportState(claims) },
         background = Executors.newSingleThreadExecutor()
     )
+
+    private val gatewayScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Loads the pictures of Image components. */
+    val images = HttpImageSource(http)
+
+    /** The one surface the TV holds, driven by the gateway's messages. */
+    val surface: SurfaceController = SurfaceController(
+        scope = gatewayScope,
+        effects = object : SurfaceEffects {
+            override fun showForeground() = context.startActivity(SurfaceActivity.intent(context))
+
+            // The surface activity watches the controller and finishes itself when the surface is gone.
+            override fun closeForeground() = Unit
+
+            override fun reply(correlationToken: String, payload: JsonObject) = background.execute {
+                try {
+                    sender.replyToGetSurface(correlationToken, payload)
+                } catch (error: PortOsException) {
+                    Log.w(TAG, "get-surface reply failed: ${error.message}")
+                }
+            }
+        },
+        display = ::displayInfo,
+        onGap = { gateway.reconnect() }
+    )
+
+    /** The WebSocket to the device gateway; connects on start and on an FCM `generative-ui/connect`. */
+    val gateway = GatewayConnector(
+        http = http,
+        gatewayUrl = BuildConfig.GATEWAY_URL,
+        authLinkId = { session.authLinkId },
+        tokens = TokenSource { forceRefresh -> session.accessToken(forceRefresh) },
+        position = surface::position,
+        onText = { text -> GatewayMessage.parse(text)?.let(surface::receive) },
+        scope = gatewayScope
+    )
+
+    /** Connects to the gateway unless already connected; does nothing until the TV is paired. */
+    fun connectGateway() {
+        if (session.isPaired) gateway.wake()
+    }
+
+    /** The screen as the registration and `get-surface-response` describe it: real pixels, 960 x 540 dp layout. */
+    private fun displayInfo(): JsonObject {
+        val size = realDisplay.size()
+        val metrics = context.resources.displayMetrics
+        return SurfaceDisplay.info(size?.width ?: metrics.widthPixels, size?.height ?: metrics.heightPixels)
+    }
 
     /** Human-readable name shown in Port OS, such as "Living Room TV". */
     val deviceName: String
@@ -178,7 +253,7 @@ internal class AppGraph(private val context: Context) {
     fun requestReport() = coalescedReports.request()
 
     private fun enqueueReport() {
-        if (!session.isPaired) return
+        if (!session.isPaired || session.needsPairing.value) return
         val request = OneTimeWorkRequestBuilder<ReportWorker>()
             .setConstraints(networkConstraint())
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
@@ -230,6 +305,7 @@ internal class AppGraph(private val context: Context) {
     private fun networkConstraint() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
     private companion object {
+        const val TAG = "PortOsGraph"
         const val UNSET = "unset"
         const val HTTP_TIMEOUT_SECONDS = 20L
 

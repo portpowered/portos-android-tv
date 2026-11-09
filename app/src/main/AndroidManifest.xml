@@ -63,6 +63,16 @@
             android:taskAffinity=""
             android:theme="@style/Theme.PortOs.Notification" />
 
+        <!-- The generative UI surface an agent draws. Started only by the app itself, from the background-launch
+             path, in its own task; Back and Home send it behind the launcher without closing the surface. -->
+        <activity
+            android:name=".surface.SurfaceActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.PortOs.Surface" />
+
         <!-- The player screen for play-uri, play-video and play-audio. Started only by PlaybackService, in its own
              task so closing it returns to the app that was showing; it closes itself when playback ends. -->
         <activity
