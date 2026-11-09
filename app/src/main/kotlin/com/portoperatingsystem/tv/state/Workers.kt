@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.portoperatingsystem.tv.PortOsApplication
+import com.portoperatingsystem.tv.auth.Session
 import com.portoperatingsystem.tv.cloud.PortOsException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,6 +15,7 @@ internal val Context.graph get() = (applicationContext as PortOsApplication).gra
 /** Sends one state report, retrying with backoff while Port OS is unreachable. */
 internal class ReportWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (!ensureLinkClaim(applicationContext)) return@withContext Result.retry()
         if (applicationContext.graph.reporter.report()) Result.success() else Result.retry()
     }
 
@@ -25,7 +27,7 @@ internal class ReportWorker(context: Context, params: WorkerParameters) : Corout
 /** The periodic report that tells Port OS this TV is still reachable. */
 internal class HeartbeatWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        applicationContext.graph.reporter.report()
+        if (ensureLinkClaim(applicationContext)) applicationContext.graph.reporter.report()
         Result.success()
     }
 
@@ -51,5 +53,21 @@ internal class TokenRotationWorker(context: Context, params: WorkerParameters) :
     companion object {
         const val NAME = "portos-token-rotation"
         private const val TAG = "PortOsToken"
+    }
+}
+
+// A TV upgraded from a build that paired before tokens carried the auth link migrates here, before it reports; the
+// gateway is woken again so it connects with the new token. False when the migration should be retried.
+internal suspend fun ensureLinkClaim(context: Context): Boolean {
+    val graph = context.graph
+    if (!graph.session.isPaired || graph.session.needsPairing.value) return true
+    return try {
+        val linked = Session.carriesLinkClaim(graph.session.accessToken())
+        graph.session.ensureLinkClaim()
+        if (!linked) graph.connectGateway()
+        true
+    } catch (error: PortOsException) {
+        Log.w("PortOsSession", "auth link claim migration failed: ${error.message}")
+        !error.retryable
     }
 }
