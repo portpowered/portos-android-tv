@@ -157,10 +157,12 @@ internal object Capability {
             "Timer",
             "Port OS component (catalog $TV_CATALOG). Ticks every second on the TV, so send it once. COUNTDOWN " +
                 "counts down to endsAt and then shows doneText in the brand color; COUNT_UP counts up from " +
-                "startedAt. Headline size; the label is above it.",
+                "startedAt. Headline size; the label is above it. showEndTime (off by default) adds the end time " +
+                "under a countdown, in the TV's time zone, for an alarm or a set time.",
             """{"label":$STRING,"mode":{"enum":["COUNTDOWN","COUNT_UP"]},
                 "endsAt":{"type":"string","format":"date-time"},
-                "startedAt":{"type":"string","format":"date-time"},"doneText":$STRING}""",
+                "startedAt":{"type":"string","format":"date-time"},"doneText":$STRING,
+                "showEndTime":{"type":"boolean"}}""",
             "mode"
         )
     )

@@ -5,6 +5,7 @@ import com.portoperatingsystem.tv.surface.a2ui.A2uiException
 import com.portoperatingsystem.tv.surface.a2ui.A2uiMessage
 import com.portoperatingsystem.tv.surface.a2ui.A2uiParser
 import com.portoperatingsystem.tv.surface.a2ui.SurfaceModel
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -96,7 +97,8 @@ internal class SurfaceController(
     private val effects: SurfaceEffects,
     private val display: () -> JsonObject,
     private val onGap: () -> Unit,
-    private val holdMillis: Long = HOLD_MILLIS
+    private val holdMillis: Long = HOLD_MILLIS,
+    private val timeZone: () -> String = { ZoneId.systemDefault().id }
 ) {
     private val lock = Any()
     private val held = sortedMapOf<Long, GatewayMessage>()
@@ -226,6 +228,8 @@ internal class SurfaceController(
                 // The schema types dataModel as an object; a model replaced by a scalar is reported empty.
                 put("dataModel", (shown?.model?.dataModel as? JsonObject) ?: JsonObject(emptyMap()))
                 put("display", display())
+                // The TV's IANA zone, so an agent can turn "at 7 pm" into the UTC endsAt of a Timer.
+                put("timeZone", timeZone())
             }
         )
     }

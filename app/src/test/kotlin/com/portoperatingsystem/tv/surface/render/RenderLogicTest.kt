@@ -5,6 +5,10 @@ import com.portoperatingsystem.tv.surface.PortosTokens
 import com.portoperatingsystem.tv.surface.a2ui.A2uiMessage
 import com.portoperatingsystem.tv.surface.a2ui.A2uiParser
 import com.portoperatingsystem.tv.surface.a2ui.SurfaceModel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -121,5 +125,20 @@ class RenderLogicTest {
         assertEquals(1.5f, PortosTokens.TV_SCALE_FACTOR)
         assertEquals(PortosTokens.Spacing.space4, PortosTokens.Spacing.space2 * 2f)
         assertEquals(21f, PortosTokens.Type.body.fontSize.value)
+    }
+
+    @Test
+    fun theEndTimeShowsOnlyWhenAskedForAndOnlyWhileCountingDown() {
+        val zone = ZoneId.of("America/Los_Angeles")
+        val sevenPm = Instant.parse("2026-11-09T03:00:00Z").toEpochMilli()
+        val format = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+        val local = Instant.ofEpochMilli(sevenPm).atZone(zone).format(format)
+        assertEquals(
+            "Ends $local",
+            endTimeText(showEndTime = true, mode = "COUNTDOWN", endsAt = sevenPm, done = false, zone = zone)
+        )
+        assertNull(endTimeText(showEndTime = false, mode = "COUNTDOWN", endsAt = sevenPm, done = false, zone = zone))
+        assertNull(endTimeText(showEndTime = true, mode = "COUNTDOWN", endsAt = sevenPm, done = true, zone = zone))
+        assertNull(endTimeText(showEndTime = true, mode = "COUNT_UP", endsAt = sevenPm, done = false, zone = zone))
     }
 }
