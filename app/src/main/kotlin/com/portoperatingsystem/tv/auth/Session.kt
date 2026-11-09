@@ -8,9 +8,14 @@ import com.portoperatingsystem.tv.cloud.PortOsException
 import com.portoperatingsystem.tv.cloud.Registration
 import com.portoperatingsystem.tv.cloud.TokenResponse
 import java.io.IOException
+import java.util.Base64
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /** Where pairing stands, for the UI. */
 internal sealed interface PairingState {
@@ -98,6 +103,20 @@ internal class Session(
     }
 
     /**
+     * Gives a TV paired before Port OS put the auth link in device tokens a token that carries it: `POST /messages`
+     * and the gateway refuse a token without the claim. Renewing the installation binds this device session to its
+     * link on the Port OS side, and one refresh then issues a token with the claim. Does nothing when the stored
+     * token already carries it, so it is cheap to call before every report.
+     */
+    suspend fun ensureLinkClaim() {
+        val current = store.load() ?: return
+        val linkId = current.authLinkId ?: return
+        if (carriesLinkClaim(current.accessToken)) return
+        establish(freshTokens(current), linkId)
+        accessToken(forceRefresh = true)
+    }
+
+    /**
      * A current access token for `POST /messages` and the gateway; refreshes when it is about to expire or when
      * [forceRefresh]. A refusal from the auth server (not a network failure) throws [PairAgainException] and raises
      * [needsPairing].
@@ -161,10 +180,24 @@ internal class Session(
         }
     }
 
-    private companion object {
-        const val TAG = "PortOsSession"
-        const val MILLIS = 1000L
-        const val SLOW_DOWN_SECONDS = 5L
-        const val EXPIRY_MARGIN_SECONDS = 300L
+    internal companion object {
+        /** The access token claim naming the auth link the token may push for. */
+        const val LINK_CLAIM = "https://portpowered.com/auth-link"
+
+        private const val TAG = "PortOsSession"
+        private const val MILLIS = 1000L
+        private const val SLOW_DOWN_SECONDS = 5L
+        private const val EXPIRY_MARGIN_SECONDS = 300L
+
+        /** Whether the JWT [accessToken] names an auth link. The TV only reads its own token; it verifies nothing. */
+        fun carriesLinkClaim(accessToken: String): Boolean {
+            val payload = accessToken.split('.').getOrNull(1) ?: return false
+            return try {
+                val claims = Json.parseToJsonElement(String(Base64.getUrlDecoder().decode(payload))).jsonObject
+                !claims[LINK_CLAIM]?.jsonPrimitive?.contentOrNull.isNullOrEmpty()
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
     }
 }
