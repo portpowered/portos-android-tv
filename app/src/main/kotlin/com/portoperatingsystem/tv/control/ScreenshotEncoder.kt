@@ -4,15 +4,15 @@ package com.portoperatingsystem.tv.control
 internal class EncodedImage(val bytes: ByteArray, val width: Int, val height: Int)
 
 /**
- * Shrinks a screenshot until it fits [MAX_BYTES]. The host's installation webhook body limit is 8 MiB, and the JPEG
- * travels base64-encoded inside a base64url-encoded signed report, so a busy frame is re-encoded smaller and at lower
+ * Shrinks a screenshot until it fits [MAX_BYTES]. The host's POST /messages body limit is 8 MiB, and the JPEG
+ * travels base64-encoded inside the JSON message, so a busy frame is re-encoded smaller and at lower
  * quality, one rung at a time, and the first rung that fits wins. A full 4K frame at high quality is tried first;
  * a smaller screen is never scaled up, so its first rung is its native size.
  */
 internal object ScreenshotEncoder {
     /**
-     * The most bytes the plugin accepts for one image (4 MiB). Base64 inside the signed report makes that about
-     * 7,457,000 bytes on the wire, under the host's 8,388,608-byte installation webhook body limit.
+     * The most bytes the plugin accepts for one image (4 MiB). Base64 inside the JSON message makes that about
+     * 5,600,000 bytes on the wire, well under the host's 8,388,608-byte POST /messages body limit.
      */
     const val MAX_BYTES: Int = 4_194_304
 

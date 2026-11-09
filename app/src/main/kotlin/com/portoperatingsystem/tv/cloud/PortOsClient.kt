@@ -136,7 +136,6 @@ internal class PortOsClient(
                     put("deviceId", registration.deviceId)
                     put("deviceName", registration.deviceName)
                     put("model", registration.model)
-                    put("publicKeyJwk", signer.publicJwk)
                 }
             )
         }

@@ -107,7 +107,7 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
 1. **Pairing.** On first launch the app creates a P-256 key in the Android Keystore and starts the OAuth
    device-code flow against Port OS, showing the user code and a QR code. When you approve it, the app
    receives a user token (DPoP-bound refresh) and establishes an Android TV plugin installation, submitting
-   its FCM registration token, device id, name and public key. The TV becomes an endpoint in your account.
+   its FCM registration token, device id, name and model. The TV becomes an endpoint in your account.
 2. **Commands (cloud → TV).** The plugin sends an FCM data message per Port OS command. The app's
    `FirebaseMessagingService` decodes it and runs it: play a `portos-media://` URI through the right app's
    deep link, play/pause/stop/next/previous through media keys (through the app's own session controller when

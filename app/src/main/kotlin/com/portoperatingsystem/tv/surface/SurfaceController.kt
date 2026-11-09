@@ -212,7 +212,8 @@ internal class SurfaceController(
                 put("visible", shown?.visible ?: false)
                 put("sequence", shown?.sequence ?: 0L)
                 put("components", shown?.model?.componentList() ?: kotlinx.serialization.json.JsonArray(emptyList()))
-                put("dataModel", shown?.model?.dataModel ?: JsonObject(emptyMap()))
+                // The schema types dataModel as an object; a model replaced by a scalar is reported empty.
+                put("dataModel", (shown?.model?.dataModel as? JsonObject) ?: JsonObject(emptyMap()))
                 put("display", display())
             }
         )

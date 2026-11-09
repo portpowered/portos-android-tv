@@ -48,6 +48,27 @@ class CapabilityTest {
     }
 
     @Test
+    fun theRegistrationFitsTheBackendsLimits() {
+        val registration = Capability.registration(SurfaceDisplay.info(1920, 1080))
+        val display = registration.getValue("display").jsonObject
+
+        // Mirrors the plugin's registration validation (androidtv/genui.go) and common-schemas/GenerativeUiDisplay.
+        assertEquals("1.0", registration.getValue("catalogVersion").jsonPrimitive.content)
+        assertEquals(2, registration.getValue("catalogIds").jsonArray.size)
+        assertTrue(registration.toString().toByteArray().size <= 60_000, "the plugin stores at most 60,000 bytes")
+        assertEquals(
+            setOf("widthPx", "heightPx", "widthDp", "heightDp", "density", "safeAreaInsetDp", "viewingDistance"),
+            display.keys
+        )
+        val widthDp = display.getValue("widthDp").jsonPrimitive.content.toInt()
+        assertTrue(display.getValue("safeAreaInsetDp").jsonPrimitive.content.toInt() < widthDp / 2)
+        assertEquals("TEN_FOOT", display.getValue("viewingDistance").jsonPrimitive.content)
+        for (component in registration.getValue("components").jsonArray) {
+            assertEquals(setOf("name", "properties", "rendering"), component.jsonObject.keys)
+        }
+    }
+
+    @Test
     fun everyComponentAcceptsAWeight() {
         val components = Capability.registration(SurfaceDisplay.info(1920, 1080))
             .getValue("components").jsonArray.map { it.jsonObject }

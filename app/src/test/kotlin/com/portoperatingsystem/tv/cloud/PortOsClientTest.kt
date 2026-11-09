@@ -76,7 +76,8 @@ class PortOsClientTest {
         assertFalse(body.containsKey("authLinkId"))
         val data = assertNotNull(body["pluginAuthenticationData"]).jsonObject
         assertEquals("fcm", data["fcmToken"]?.jsonPrimitive?.content)
-        assertEquals(signer.publicJwk, data["publicKeyJwk"]?.jsonObject)
+        // The plugin refuses anything but exactly these four fields (the report is authenticated by the token).
+        assertEquals(setOf("fcmToken", "deviceId", "deviceName", "model"), data.keys)
     }
 
     @Test
