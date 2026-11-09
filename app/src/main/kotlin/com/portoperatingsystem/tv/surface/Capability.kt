@@ -97,8 +97,9 @@ internal object Capability {
     private val components: List<JsonObject> = listOf(
         component(
             "Text",
-            "Text in the Port OS type scale. Markdown headings: # and ## use the headline sizes, ### to ##### the " +
-                "title sizes; variant body is the body size, caption the micro size. Default text color.",
+            "Text in the Port OS type scale. Markdown headings set the level: # headline, ## page title, ### section " +
+                "heading, #### to ##### subsection heading; variant body is the body size, caption the micro size. " +
+                "Default text color.",
             """{"text":$STRING,"variant":{"enum":["body","caption"]}}""",
             "text"
         ),
