@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import com.portoperatingsystem.tv.surface.SurfaceDisplay
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
@@ -47,6 +49,9 @@ internal class HttpImageSource(private val client: OkHttpClient) : ImageSource {
 internal interface TimerClock {
     fun nowMillis(): Long
 
+    /** The time zone a Timer's end time is shown in: the TV's own. */
+    fun zone(): ZoneId
+
     suspend fun awaitTick()
 }
 
@@ -54,12 +59,16 @@ internal interface TimerClock {
 internal object SystemTimerClock : TimerClock {
     override fun nowMillis(): Long = System.currentTimeMillis()
 
+    override fun zone(): ZoneId = ZoneId.systemDefault()
+
     override suspend fun awaitTick() = delay(MILLIS_PER_SECOND - nowMillis() % MILLIS_PER_SECOND)
 }
 
-/** A clock fixed at [millis] that never ticks, for screenshots and tests. */
-internal class FrozenTimerClock(private val millis: Long) : TimerClock {
+/** A clock fixed at [millis] in [zone] that never ticks, for screenshots and tests. */
+internal class FrozenTimerClock(private val millis: Long, private val zone: ZoneId = ZoneOffset.UTC) : TimerClock {
     override fun nowMillis(): Long = millis
+
+    override fun zone(): ZoneId = zone
 
     override suspend fun awaitTick() = awaitCancellation()
 }

@@ -16,6 +16,8 @@ import com.portoperatingsystem.tv.surface.a2ui.A2uiMessage
 import com.portoperatingsystem.tv.surface.a2ui.A2uiParser
 import com.portoperatingsystem.tv.surface.a2ui.SurfaceModel
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.awaitCancellation
@@ -82,20 +84,20 @@ class SurfaceScreenshotTest {
         return SurfaceModel.create(A2uiParser.parse(create) as A2uiMessage.CreateSurface)
     }
 
-    private fun render(components: String, data: String = "{}") {
+    private fun render(components: String, data: String = "{}", zone: ZoneId = ZoneOffset.UTC) {
         rule.setContent {
             PortosTheme(panelWidthPx = PANEL_WIDTH) {
                 CompositionLocalProvider(
                     LocalImageSource provides images,
-                    LocalTimerClock provides FrozenTimerClock(now)
+                    LocalTimerClock provides FrozenTimerClock(now, zone)
                 ) { SurfaceScreen(model(components, data)) }
             }
         }
         rule.waitForIdle()
     }
 
-    private fun show(name: String, components: String, data: String = "{}") {
-        render(components, data)
+    private fun show(name: String, components: String, data: String = "{}", zone: ZoneId = ZoneOffset.UTC) {
+        render(components, data, zone)
         rule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 
@@ -250,6 +252,14 @@ class SurfaceScreenshotTest {
         {"id":"bread","component":"Timer","label":"Garlic bread","mode":"COUNTDOWN","endsAt":"2026-11-08T17:59:00Z",
         "doneText":"Bread is ready"},
         {"id":"note","component":"Text","variant":"caption","text":"A sibling after the list keeps its place"}]"""
+    )
+
+    @Test
+    fun anAlarmShowsItsEndTimeInTheTVsZone() = show(
+        "timer-end-time",
+        """[{"id":"root","component":"Timer","label":"Dinner","mode":"COUNTDOWN",
+        "endsAt":"2026-11-08T18:30:00Z","doneText":"Dinner time","showEndTime":true}]""",
+        zone = ZoneId.of("America/Los_Angeles")
     )
 
     @Test

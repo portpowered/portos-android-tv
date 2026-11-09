@@ -503,6 +503,9 @@
               }
             ]
           },
+          "showEndTime": {
+            "type": "boolean"
+          },
           "weight": {
             "type": "number",
             "description": "Share of the free space in a Row or Column."
@@ -519,7 +522,7 @@
         ],
         "additionalProperties": false
       },
-      "rendering": "Port OS component (catalog https://portoperatingsystem.com/a2ui/catalogs/tv/v1/catalog.json). Ticks every second on the TV, so send it once. COUNTDOWN counts down to endsAt and then shows doneText in the brand color; COUNT_UP counts up from startedAt. Headline size; the label is above it."
+      "rendering": "Port OS component (catalog https://portoperatingsystem.com/a2ui/catalogs/tv/v1/catalog.json). Ticks every second on the TV, so send it once. COUNTDOWN counts down to endsAt and then shows doneText in the brand color; COUNT_UP counts up from startedAt. Headline size; the label is above it. showEndTime (off by default) adds the end time under a countdown, in the TV's time zone, for an alarm or a set time."
     }
   ]
 }

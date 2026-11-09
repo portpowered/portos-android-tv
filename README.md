@@ -337,7 +337,11 @@ registers its display capability (size, density, supported components) when it c
   out-of-order message for 5 seconds, then reconnects with `lastSequence` so the gateway replays the gap. The held
   surface is in memory only.
 - **Replies.** A `get-surface` is answered with a `get-surface-response` message on `POST /messages`, copying
-  `context.correlationToken`. Nothing is sent back over the WebSocket except `pong`.
+  `context.correlationToken`. The reply carries the TV's IANA `timeZone` (since 0.9.3), so an agent can turn
+  "at 7 pm" into a Timer's UTC `endsAt`; the backend accepts the field before an app that sends it is installed.
+  Nothing is sent back over the WebSocket except `pong`.
+- **Timer end time.** `showEndTime: true` (off by default) adds "Ends 7:00 PM" under a countdown, in the TV's
+  zone; it is gone once the countdown is done.
 - **Pairing.** When the token cannot be refreshed the connector stops and the status screen shows "pair again".
 - **Tokens.** `make sync-tokens` copies the website's generated `PortosTokens.kt` from a monorepo checkout
   (`MONOREPO=/path`) and records its commit and SHA-256 in the header. `TokensTest` fails if the vendored file was

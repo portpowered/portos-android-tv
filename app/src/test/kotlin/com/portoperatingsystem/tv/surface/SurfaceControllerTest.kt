@@ -52,7 +52,14 @@ class SurfaceControllerTest {
     private val effects = Effects()
     private var gaps = 0
     private val display = buildJsonObject { put("widthPx", 1920) }
-    private val controller = SurfaceController(scope, effects, { display }, { gaps++ }, holdMillis = 5_000)
+    private val controller = SurfaceController(
+        scope = scope,
+        effects = effects,
+        display = { display },
+        onGap = { gaps++ },
+        holdMillis = 5_000,
+        timeZone = { "America/Los_Angeles" }
+    )
 
     private fun message(name: String, id: String, sequence: Long?, payload: String, token: String? = null) =
         GatewayMessage(
@@ -325,6 +332,7 @@ class SurfaceControllerTest {
             payload.getValue("components").jsonArray[0].jsonObject.getValue("text").jsonPrimitive.content
         )
         assertEquals(display, payload.getValue("display"))
+        assertEquals("America/Los_Angeles", payload.getValue("timeZone").jsonPrimitive.content)
     }
 
     @Test

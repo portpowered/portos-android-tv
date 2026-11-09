@@ -40,9 +40,14 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.portoperatingsystem.tv.surface.PortosTokens
 import com.portoperatingsystem.tv.surface.a2ui.SurfaceModel
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 
 private const val ROOT = "root"
@@ -337,6 +342,19 @@ internal fun readTimer(mode: String?, endsAt: Long?, startedAt: Long?, doneText:
         else -> null
     }
 
+/**
+ * The end time a COUNTDOWN Timer shows under its count when the agent sets `showEndTime` (an alarm or a set time),
+ * in the TV's [zone]; null once it is done, for a COUNT_UP timer, and by default.
+ */
+internal fun endTimeText(showEndTime: Boolean, mode: String?, endsAt: Long?, done: Boolean, zone: ZoneId): String? {
+    val counting = mode == "COUNTDOWN" && !done
+    return endsAt?.takeIf { showEndTime && counting }?.let {
+        "Ends " + Instant.ofEpochMilli(it).atZone(zone).format(END_TIME_FORMAT)
+    }
+}
+
+private val END_TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+
 @Composable
 private fun TimerNode(renderer: Renderer, component: JsonObject, modifier: Modifier) {
     val clock = LocalTimerClock.current
@@ -348,18 +366,25 @@ private fun TimerNode(renderer: Renderer, component: JsonObject, modifier: Modif
         }
     }
     val label = renderer.bindings.string(component["label"])
+    val mode = component.text("mode")
+    val endsAt = parseMillis(renderer.bindings.string(component["endsAt"]))
     val reading = readTimer(
-        component.text("mode"),
-        parseMillis(renderer.bindings.string(component["endsAt"])),
+        mode,
+        endsAt,
         parseMillis(renderer.bindings.string(component["startedAt"])),
         renderer.bindings.string(component["doneText"]),
         now
     ) ?: return
+    val showEndTime = (component["showEndTime"] as? JsonPrimitive)?.booleanOrNull == true
+    val endTime = endTimeText(showEndTime, mode, endsAt, reading.done, clock.zone())
     val color = if (reading.done) PortosTokens.Colors.primaryEmphasis else PortosTokens.Colors.foreground
     Column(modifier) {
         label?.let {
             Text(it, style = PortosTokens.Type.label, color = PortosTokens.Colors.mutedForeground)
         }
         Text(reading.text, style = PortosTokens.Type.headline, color = color)
+        endTime?.let {
+            Text(it, style = PortosTokens.Type.label, color = PortosTokens.Colors.mutedForeground)
+        }
     }
 }
