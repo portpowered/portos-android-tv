@@ -131,8 +131,8 @@ in the app's private, non-backed-up storage); the prompt shows its fingerprint. 
      download is done. `loop: true` sets `REPEAT_MODE_ONE`. A new request replaces the current item and deletes the
      previous file; stopping the service deletes them all. A failed download is logged and the service stops. Starting
      file playback, and `play-uri`, opens `PlayerActivity`: a full-screen Media3 `PlayerView` on the service's player
-     with the standard controls (play and pause, seek bar, position and duration; audio shows them on a plain
-     background). It closes itself when the player goes idle or ends, so the stop key returns to the previous app, and
+     with nothing over the media: the standard controls (play and pause, seek bar, position and duration) show only
+     after a remote key, for 5 seconds, and audio plays on a plain background. It closes itself when the player goes idle or ends, so the stop key returns to the previous app, and
      Back stops playback and closes it. The same background-launch check as `play-uri` applies.
    - **Show a slideshow** (`media-player/show-images`, `add-images`, `remove-images`). The plugin publishes each
      image and sends the links in parts (`part: {set, index, count}`), as many per push as fit 4 KB; `ImageParts`
