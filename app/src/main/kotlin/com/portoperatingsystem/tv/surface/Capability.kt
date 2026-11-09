@@ -1,5 +1,6 @@
 package com.portoperatingsystem.tv.surface
 
+import com.portoperatingsystem.tv.surface.render.IconNames
 import kotlin.math.roundToInt
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -61,6 +62,8 @@ internal object Capability {
      * One registered component. `properties` is the JSON Schema (draft 2020-12) of the whole component object as the
      * TV accepts it, `id` and `component` included, so the plugin can validate a component list against it.
      */
+    private fun iconNames(): String = JsonArray(IconNames.names.map { JsonPrimitive(it) }).toString()
+
     private fun component(name: String, rendering: String, properties: String, vararg required: String): JsonObject =
         buildJsonObject {
             put("name", name)
@@ -115,7 +118,7 @@ internal object Capability {
         component(
             "Icon",
             "A vector icon at the icon size in the default text color. Names are the A2UI basic-catalog names.",
-            """{"name":{"type":"string"}}""",
+            """{"name":{"enum":${iconNames()}}}""",
             "name"
         ),
         component(

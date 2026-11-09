@@ -240,6 +240,19 @@ class SurfaceScreenshotTest {
     )
 
     @Test
+    fun aListOfTimers() = show(
+        "timer-list",
+        """[{"id":"root","component":"Column","children":["head","timers","note"]},
+        {"id":"head","component":"Text","text":"# Dinner timers"},
+        {"id":"timers","component":"List","children":["pasta","bread"]},
+        {"id":"pasta","component":"Timer","label":"Pasta","mode":"COUNTDOWN","endsAt":"2026-11-08T18:07:30Z",
+        "doneText":"Done!"},
+        {"id":"bread","component":"Timer","label":"Garlic bread","mode":"COUNTDOWN","endsAt":"2026-11-08T17:59:00Z",
+        "doneText":"Bread is ready"},
+        {"id":"note","component":"Text","variant":"caption","text":"A sibling after the list keeps its place"}]"""
+    )
+
+    @Test
     fun timerCountdownRunning() = show(
         "timer-countdown",
         """[{"id":"root","component":"Timer","label":"Pasta","mode":"COUNTDOWN",
@@ -269,11 +282,11 @@ class SurfaceScreenshotTest {
         {"id":"card","component":"Card","child":"body"},
         {"id":"body","component":"Row","children":["timer","side"]},
         {"id":"timer","component":"Timer","weight":1,"label":{"@path":"/label"},"mode":"COUNTDOWN",
-        "endsAt":{"@path":"/endsAt"},"doneText":"Dinner is ready"},
+        "endsAt":"2026-11-08T18:09:00Z","doneText":"Dinner is ready"},
         {"id":"side","component":"Column","weight":1,"children":["s1","s2"]},
         {"id":"s1","component":"Text","text":"Boil the water"},
         {"id":"s2","component":"Text","variant":"caption","text":"Then add salt and the pasta"}]""",
-        """{"title":"# Kitchen","label":"Pasta","endsAt":"2026-11-08T18:09:00Z"}"""
+        """{"title":"# Kitchen","label":"Pasta"}"""
     )
 
     /** The window as drawn, read pixel by pixel (the semantics capture is not usable under Robolectric's looper). */
