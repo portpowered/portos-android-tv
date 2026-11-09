@@ -384,6 +384,10 @@ JVM. `:app` is the thin layer that touches Android APIs and is tested with Robol
 - The `reports.generativeUi` registration the app sends is pinned by `app/src/test/resources/generative-ui-registration.json`
   (`CapabilityTest` fails on any difference). After an intended change to a component's schema, `make record-registration`
   rewrites the golden; review the diff, since the backend plugin validates every surface against it.
+- `app/src/test/resources/customer-surfaces.json` holds the customer surfaces (a list, timers, product cards, two
+  columns, a bound status line) as an agent sends them. `CustomerSurfacesScreenshotTest` runs each through the
+  controller, reads it back with `get-surface` and screenshots it; the backend plugin validates the same file (its
+  `testdata/customer-surfaces.json` is a verbatim copy), so change both together.
 - `make test-device`: instrumented tests on the connected emulator or TV (`ADB_SERIAL`). None exist yet;
   on-device behavior was verified by hand (see the design doc's spike findings).
 - End-to-end against a real backend: the backend's functional tests cover the plugin with a fake FCM; the

@@ -1,0 +1,496 @@
+{
+  "description": "Customer surfaces as an agent sends them, shared verbatim with the Port OS Android TV plugin's testdata/customer-surfaces.json. The app renders each (CustomerSurfacesScreenshotTest) and the plugin validates each against generative-ui-registration.json.",
+  "scenarios": [
+    {
+      "name": "list",
+      "behavior": "A list of items, ticked off one line at a time",
+      "calls": [
+        {
+          "message": "show-surface",
+          "payload": {
+            "surfaceId": "shopping",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "shopping",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "head",
+                        "list",
+                        "note"
+                      ]
+                    },
+                    {
+                      "id": "head",
+                      "component": "Text",
+                      "text": "## Shopping"
+                    },
+                    {
+                      "id": "list",
+                      "component": "List",
+                      "children": [
+                        "i1",
+                        "i2",
+                        "i3"
+                      ]
+                    },
+                    {
+                      "id": "i1",
+                      "component": "Text",
+                      "text": "Milk"
+                    },
+                    {
+                      "id": "i2",
+                      "component": "Text",
+                      "text": "Eggs"
+                    },
+                    {
+                      "id": "i3",
+                      "component": "Text",
+                      "text": "Coffee"
+                    },
+                    {
+                      "id": "note",
+                      "component": "Text",
+                      "text": "Tell me when you pick something up",
+                      "variant": "caption"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "update-surface",
+          "payload": {
+            "surfaceId": "shopping",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "shopping",
+                  "components": [
+                    {
+                      "id": "i2",
+                      "component": "Text",
+                      "text": "Done: Eggs"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "timers",
+      "behavior": "A list of timers, then one more added",
+      "calls": [
+        {
+          "message": "show-surface",
+          "payload": {
+            "surfaceId": "dinner",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "dinner",
+                  "catalogId": "https://portoperatingsystem.com/a2ui/catalogs/tv/v1/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "head",
+                        "timers"
+                      ]
+                    },
+                    {
+                      "id": "head",
+                      "component": "Text",
+                      "text": "# Dinner timers"
+                    },
+                    {
+                      "id": "timers",
+                      "component": "List",
+                      "children": [
+                        "pasta",
+                        "bread",
+                        "chicken"
+                      ]
+                    },
+                    {
+                      "id": "pasta",
+                      "component": "Timer",
+                      "mode": "COUNTDOWN",
+                      "label": "Pasta",
+                      "endsAt": "2026-11-08T18:10:00Z",
+                      "doneText": "Done"
+                    },
+                    {
+                      "id": "bread",
+                      "component": "Timer",
+                      "mode": "COUNTDOWN",
+                      "label": "Garlic bread",
+                      "endsAt": "2026-11-08T18:18:00Z",
+                      "doneText": "Done"
+                    },
+                    {
+                      "id": "chicken",
+                      "component": "Timer",
+                      "mode": "COUNTDOWN",
+                      "label": "Roast chicken",
+                      "endsAt": "2026-11-08T18:45:00Z",
+                      "doneText": "Done"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "update-surface",
+          "payload": {
+            "surfaceId": "dinner",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "dinner",
+                  "components": [
+                    {
+                      "id": "timers",
+                      "component": "List",
+                      "children": [
+                        "pasta",
+                        "bread",
+                        "chicken",
+                        "rest"
+                      ]
+                    },
+                    {
+                      "id": "rest",
+                      "component": "Timer",
+                      "mode": "COUNT_UP",
+                      "label": "Dough resting",
+                      "startedAt": "2026-11-08T17:45:00Z"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "product-cards",
+      "behavior": "Product cards with images and prices",
+      "calls": [
+        {
+          "message": "show-surface",
+          "payload": {
+            "surfaceId": "picks",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "picks",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "head",
+                        "cards"
+                      ]
+                    },
+                    {
+                      "id": "head",
+                      "component": "Text",
+                      "text": "## Kettles under $60"
+                    },
+                    {
+                      "id": "cards",
+                      "component": "Row",
+                      "children": [
+                        "a",
+                        "b",
+                        "c"
+                      ]
+                    },
+                    {
+                      "id": "a",
+                      "component": "Card",
+                      "weight": 1,
+                      "child": "a-body"
+                    },
+                    {
+                      "id": "a-body",
+                      "component": "Column",
+                      "align": "center",
+                      "children": [
+                        "a-img",
+                        "a-name",
+                        "a-price"
+                      ]
+                    },
+                    {
+                      "id": "a-img",
+                      "component": "Image",
+                      "url": "https://example.com/a.jpg",
+                      "variant": "mediumFeature",
+                      "fit": "cover",
+                      "description": "Kettle A"
+                    },
+                    {
+                      "id": "a-name",
+                      "component": "Text",
+                      "text": "### Kettle A"
+                    },
+                    {
+                      "id": "a-price",
+                      "component": "Text",
+                      "text": "$49",
+                      "variant": "caption"
+                    },
+                    {
+                      "id": "b",
+                      "component": "Card",
+                      "weight": 1,
+                      "child": "b-body"
+                    },
+                    {
+                      "id": "b-body",
+                      "component": "Column",
+                      "align": "center",
+                      "children": [
+                        "b-img",
+                        "b-name",
+                        "b-price"
+                      ]
+                    },
+                    {
+                      "id": "b-img",
+                      "component": "Image",
+                      "url": "https://example.com/b.jpg",
+                      "variant": "mediumFeature",
+                      "fit": "cover",
+                      "description": "Kettle B"
+                    },
+                    {
+                      "id": "b-name",
+                      "component": "Text",
+                      "text": "### Kettle B"
+                    },
+                    {
+                      "id": "b-price",
+                      "component": "Text",
+                      "text": "$55",
+                      "variant": "caption"
+                    },
+                    {
+                      "id": "c",
+                      "component": "Card",
+                      "weight": 1,
+                      "child": "c-body"
+                    },
+                    {
+                      "id": "c-body",
+                      "component": "Column",
+                      "align": "center",
+                      "children": [
+                        "c-img",
+                        "c-name",
+                        "c-price"
+                      ]
+                    },
+                    {
+                      "id": "c-img",
+                      "component": "Image",
+                      "url": "https://example.com/c.jpg",
+                      "variant": "mediumFeature",
+                      "fit": "cover",
+                      "description": "Kettle C"
+                    },
+                    {
+                      "id": "c-name",
+                      "component": "Text",
+                      "text": "### Kettle C"
+                    },
+                    {
+                      "id": "c-price",
+                      "component": "Text",
+                      "text": "$59",
+                      "variant": "caption"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "columns",
+      "behavior": "Left and right columns",
+      "calls": [
+        {
+          "message": "show-surface",
+          "payload": {
+            "surfaceId": "compare",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "compare",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Row",
+                      "children": [
+                        "left",
+                        "split",
+                        "right"
+                      ]
+                    },
+                    {
+                      "id": "left",
+                      "component": "Column",
+                      "weight": 1,
+                      "children": [
+                        "l-head",
+                        "l-img",
+                        "l-body"
+                      ]
+                    },
+                    {
+                      "id": "l-head",
+                      "component": "Text",
+                      "text": "## Today"
+                    },
+                    {
+                      "id": "l-img",
+                      "component": "Image",
+                      "url": "https://example.com/sun.png",
+                      "variant": "smallFeature",
+                      "description": "Sunny"
+                    },
+                    {
+                      "id": "l-body",
+                      "component": "Text",
+                      "text": "Sunny, 21°"
+                    },
+                    {
+                      "id": "split",
+                      "component": "Divider",
+                      "axis": "vertical"
+                    },
+                    {
+                      "id": "right",
+                      "component": "Column",
+                      "weight": 1,
+                      "children": [
+                        "r-head",
+                        "r-icon",
+                        "r-body"
+                      ]
+                    },
+                    {
+                      "id": "r-head",
+                      "component": "Text",
+                      "text": "## Tomorrow"
+                    },
+                    {
+                      "id": "r-icon",
+                      "component": "Icon",
+                      "name": "calendarToday"
+                    },
+                    {
+                      "id": "r-body",
+                      "component": "Text",
+                      "text": "Rain, 14°"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "bound-status",
+      "behavior": "Text bound to the data model, changed by updateDataModel",
+      "calls": [
+        {
+          "message": "show-surface",
+          "payload": {
+            "surfaceId": "status",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "status",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "head",
+                        "line"
+                      ]
+                    },
+                    {
+                      "id": "head",
+                      "component": "Text",
+                      "text": "# Laundry"
+                    },
+                    {
+                      "id": "line",
+                      "component": "Text",
+                      "text": {
+                        "@path": "/status"
+                      }
+                    }
+                  ],
+                  "dataModel": {
+                    "status": "Washing, 20 minutes left"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "message": "update-surface",
+          "payload": {
+            "surfaceId": "status",
+            "a2ui": [
+              {
+                "version": "1.0",
+                "updateDataModel": {
+                  "surfaceId": "status",
+                  "path": "/status",
+                  "value": "Done: move it to the dryer"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
