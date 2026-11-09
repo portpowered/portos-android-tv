@@ -276,7 +276,7 @@ private fun ListNode(renderer: Renderer, component: JsonObject, modifier: Modifi
             ) { for (item in items) Node(renderer, item, Modifier) }
         }
     } else {
-        Box(modifier.fillMaxHeight().clipToBounds()) {
+        Box(modifier.clipToBounds()) {
             Column(
                 Modifier.wrapContentHeight(align = Alignment.Top, unbounded = true),
                 verticalArrangement = Arrangement.spacedBy(PortosTokens.Spacing.space3),

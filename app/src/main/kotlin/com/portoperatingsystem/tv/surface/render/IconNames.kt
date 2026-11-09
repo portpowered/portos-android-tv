@@ -66,6 +66,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 internal object IconNames {
     fun vector(name: String?): ImageVector? = icons[name]
 
+    /** Every name that renders a glyph, in the registration's Icon schema. */
+    val names: List<String> get() = icons.keys.sorted()
+
     private val icons: Map<String, ImageVector> = mapOf(
         "accountCircle" to Icons.Filled.AccountCircle,
         "add" to Icons.Filled.Add,
