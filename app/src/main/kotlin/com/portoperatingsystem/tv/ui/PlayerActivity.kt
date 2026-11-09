@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import androidx.annotation.OptIn
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
@@ -15,12 +16,15 @@ import com.portoperatingsystem.tv.playback.PlaybackService
 
 /**
  * The full-screen player for `play-uri`, `play-video` and `play-audio`: a Media3 [PlayerView] attached to the player
- * [PlaybackService] owns, with the standard controls (play and pause, seek bar, position and duration). It closes
- * itself when that player goes idle or ends, so a stop key or the end of the file returns to the previous app, and
- * Back stops playback and closes it. Audio shows the same controls on a plain background.
+ * [PlaybackService] owns. Nothing covers the media: the standard controls (play and pause, seek bar, position and
+ * duration) appear only when someone presses a remote key, and hide again after a few seconds. It closes itself when
+ * that player goes idle or ends, so a stop key or the end of the file returns to the previous app, and Back stops
+ * playback and closes it. Audio plays on a plain background.
  */
 internal class PlayerActivity : Activity() {
-    private lateinit var view: PlayerView
+    @VisibleForTesting
+    internal lateinit var view: PlayerView
+        private set
     private var attached: Player? = null
     private val finishWhenDone = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -78,14 +82,16 @@ internal class PlayerActivity : Activity() {
         val background = if (video) Color.BLACK else getColor(R.color.background)
         view.setBackgroundColor(background)
         view.setShutterBackgroundColor(background)
-        // Audio has no picture to reveal, so its controls stay up; over a video they hide after a few seconds.
-        view.controllerShowTimeoutMs = if (video) VIDEO_CONTROLS_MILLIS else 0
-        view.showController()
+        // No overlay by default, not even when playback starts, pauses or ends; a remote key shows the controls for a
+        // few seconds.
+        view.controllerAutoShow = false
+        view.controllerShowTimeoutMs = CONTROLS_MILLIS
+        view.hideController()
     }
 
     companion object {
         private const val EXTRA_VIDEO = "video"
-        private const val VIDEO_CONTROLS_MILLIS = 5_000
+        private const val CONTROLS_MILLIS = 5_000
 
         /** The intent that opens the player screen, for a [video] or for audio. */
         fun intent(context: Context, video: Boolean): Intent = Intent(context, PlayerActivity::class.java)
